@@ -40,6 +40,7 @@ function App() {
   const [couponValue, setCouponValue] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [submittingCoupon, setSubmittingCoupon] = useState(false);
+  const [couponMaxDiscount, setCouponMaxDiscount] = useState('');
   const [minPriceFilter, setMinPriceFilter] = useState('');
   const [maxPriceFilter, setMaxPriceFilter] = useState('');
 
@@ -224,6 +225,7 @@ function App() {
           code: couponCode.trim().toUpperCase(),
           type: couponType,
           value: parseFloat(couponValue),
+          maxDiscount: couponMaxDiscount !== '' ? parseFloat(couponMaxDiscount) : null,
           productIds: selectedProductIds
         })
       });
@@ -232,6 +234,7 @@ function App() {
         showToast('Cupom gravado e produtos vinculados com sucesso! 🎟️');
         setCouponCode('');
         setCouponValue('');
+        setCouponMaxDiscount('');
         setSelectedProductIds([]);
         fetchCoupons();
         fetchProducts(); // Refresh products to show updated coupon code
@@ -529,12 +532,16 @@ function App() {
                           const linkedCoupon = coupons.find(c => c.code === coupon);
                           if (linkedCoupon) {
                             const origVal = parseFloat(price || 0);
-                            let promoVal = origVal;
+                            let discount = 0;
                             if (linkedCoupon.type === 'percentage') {
-                              promoVal = origVal * (1 - linkedCoupon.value / 100);
+                              discount = origVal * (linkedCoupon.value / 100);
                             } else {
-                              promoVal = Math.max(0, origVal - linkedCoupon.value);
+                              discount = linkedCoupon.value;
                             }
+                            if (linkedCoupon.maxDiscount != null && discount > linkedCoupon.maxDiscount) {
+                              discount = linkedCoupon.maxDiscount;
+                            }
+                            const promoVal = Math.max(0, origVal - discount);
                             return (
                               <>
                                 <span className="card-original-price">
@@ -689,6 +696,17 @@ function App() {
                       required
                     />
                   </div>
+
+                  <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
+                    <label>Valor Máximo do Desconto (R$ - Opcional)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ex: 40.00 (vazio = sem limite)"
+                      value={couponMaxDiscount}
+                      onChange={(e) => setCouponMaxDiscount(e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <div className="form-group" style={{ marginTop: '12px' }}>
@@ -827,6 +845,7 @@ function App() {
                       <th>Código</th>
                       <th>Tipo</th>
                       <th>Valor</th>
+                      <th>Máx. Desconto</th>
                       <th>Produtos Vinculados</th>
                       <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>
@@ -846,6 +865,9 @@ function App() {
                           </td>
                           <td style={{ fontWeight: 600 }}>
                             {c.type === 'percentage' ? `${c.value}%` : `R$ ${c.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          </td>
+                          <td style={{ color: 'var(--text-secondary)' }}>
+                            {c.maxDiscount != null ? `R$ ${c.maxDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Sem limite'}
                           </td>
                           <td style={{ color: 'var(--text-secondary)' }}>
                             {linkedCount} {linkedCount === 1 ? 'produto' : 'produtos'}

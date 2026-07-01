@@ -48,11 +48,16 @@ function App() {
     if (!product.coupon) return product.price;
     const linkedCoupon = coupons.find(c => c.code === product.coupon);
     if (linkedCoupon) {
+      let discount = 0;
       if (linkedCoupon.type === 'percentage') {
-        return product.price * (1 - linkedCoupon.value / 100);
+        discount = product.price * (linkedCoupon.value / 100);
       } else {
-        return Math.max(0, product.price - linkedCoupon.value);
+        discount = linkedCoupon.value;
       }
+      if (linkedCoupon.maxDiscount != null && discount > linkedCoupon.maxDiscount) {
+        discount = linkedCoupon.maxDiscount;
+      }
+      return Math.max(0, product.price - discount);
     }
     return product.price;
   };

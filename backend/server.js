@@ -265,7 +265,7 @@ app.get('/api/coupons', async (req, res) => {
 
 // API: Adicionar ou atualizar um cupom e seus produtos vinculados
 app.post('/api/coupons', async (req, res) => {
-  const { code, type, value, productIds } = req.body;
+  const { code, type, value, maxDiscount, productIds } = req.body;
   
   if (!code || !type || value === undefined) {
     return res.status(400).json({ error: 'Código, tipo e valor do cupom são obrigatórios.' });
@@ -278,7 +278,8 @@ app.post('/api/coupons', async (req, res) => {
   const newCoupon = {
     code: normalizedCode,
     type, // 'fixed' ou 'percentage'
-    value: parseFloat(value)
+    value: parseFloat(value),
+    maxDiscount: maxDiscount !== undefined && maxDiscount !== '' && maxDiscount !== null ? parseFloat(maxDiscount) : null
   };
 
   const existingIndex = db.coupons.findIndex(c => c.code === normalizedCode);
