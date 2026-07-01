@@ -36,6 +36,8 @@ function App() {
   const [couponValue, setCouponValue] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [submittingCoupon, setSubmittingCoupon] = useState(false);
+  const [minPriceFilter, setMinPriceFilter] = useState('');
+  const [maxPriceFilter, setMaxPriceFilter] = useState('');
 
   // Fetch all products
   const fetchProducts = async () => {
@@ -269,6 +271,42 @@ function App() {
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
+  };
+
+  // Filter products for the coupon checklist based on price
+  const filteredChecklistProducts = products.filter(p => {
+    const price = parseFloat(p.price);
+    const min = minPriceFilter !== '' ? parseFloat(minPriceFilter) : null;
+    const max = maxPriceFilter !== '' ? parseFloat(maxPriceFilter) : null;
+    
+    if (min !== null && isNaN(min)) return true;
+    if (max !== null && isNaN(max)) return true;
+
+    if (min !== null && price < min) return false;
+    if (max !== null && price > max) return false;
+    return true;
+  });
+
+  // Select all products currently visible in the checklist
+  const handleSelectAllFiltered = (e) => {
+    e.preventDefault();
+    const filteredIds = filteredChecklistProducts.map(p => p.id);
+    setSelectedProductIds(prev => {
+      const newSelection = [...prev];
+      filteredIds.forEach(id => {
+        if (!newSelection.includes(id)) {
+          newSelection.push(id);
+        }
+      });
+      return newSelection;
+    });
+  };
+
+  // Deselect all products currently visible in the checklist
+  const handleDeselectAllFiltered = (e) => {
+    e.preventDefault();
+    const filteredIds = filteredChecklistProducts.map(p => p.id);
+    setSelectedProductIds(prev => prev.filter(id => !filteredIds.includes(id)));
   };
 
   return (
@@ -672,20 +710,90 @@ function App() {
 
                 <div className="form-group" style={{ marginTop: '12px' }}>
                   <label>Vincular Produtos a este Cupom</label>
+                  
+                  {/* Filter and Selection buttons row */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '10px', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Preço de:</span>
+                      <input
+                        type="number"
+                        placeholder="Mínimo"
+                        value={minPriceFilter}
+                        onChange={(e) => setMinPriceFilter(e.target.value)}
+                        style={{ padding: '6px 8px', width: '90px', fontSize: '0.85rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>até</span>
+                      <input
+                        type="number"
+                        placeholder="Máximo"
+                        value={maxPriceFilter}
+                        onChange={(e) => setMaxPriceFilter(e.target.value)}
+                        style={{ padding: '6px 8px', width: '90px', fontSize: '0.85rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                      {(minPriceFilter || maxPriceFilter) && (
+                        <button
+                          type="button"
+                          onClick={() => { setMinPriceFilter(''); setMaxPriceFilter(''); }}
+                          style={{ background: 'transparent', border: 'none', color: '#f73f55', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: '4px' }}
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllFiltered}
+                        style={{ 
+                          fontSize: '0.75rem', 
+                          padding: '6px 12px', 
+                          background: 'transparent', 
+                          border: '1px solid var(--accent-blue)', 
+                          color: 'var(--accent-blue)',
+                          borderRadius: '4px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Selecionar Todos ({filteredChecklistProducts.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeselectAllFiltered}
+                        style={{ 
+                          fontSize: '0.75rem', 
+                          padding: '6px 12px', 
+                          background: 'transparent', 
+                          border: '1px solid var(--danger)', 
+                          color: 'var(--danger)',
+                          borderRadius: '4px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Deselecionar Todos
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="checklist-container">
-                    {products.length === 0 ? (
-                      <p style={{ padding: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        Nenhum produto cadastrado para vincular.
+                    {filteredChecklistProducts.length === 0 ? (
+                      <p style={{ padding: '10px', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                        Nenhum produto corresponde aos filtros aplicados.
                       </p>
                     ) : (
-                      products.map(p => (
+                      filteredChecklistProducts.map(p => (
                         <label key={p.id} className="checklist-item">
                           <input
                             type="checkbox"
                             checked={selectedProductIds.includes(p.id)}
                             onChange={() => handleProductCheckboxChange(p.id)}
                           />
-                          <span>{p.title} ({p.store}) - R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                            <span>{p.title} ({p.store})</span>
+                            <strong style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                          </span>
                         </label>
                       ))
                     )}
