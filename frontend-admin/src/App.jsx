@@ -551,20 +551,12 @@ function App() {
                               </>
                             );
                           } else {
-                            // Senão, cálculo clássico de originalPrice vs price
                             return (
-                              <>
-                                {originalPrice && parseFloat(originalPrice) > parseFloat(price || 0) && (
-                                  <span className="card-original-price">
-                                    R$ {parseFloat(originalPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                  </span>
-                                )}
-                                <div className="price-row">
-                                  <span className="card-current-price">
-                                    R$ {parseFloat(price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              </>
+                              <div className="price-row">
+                                <span className="card-current-price">
+                                  R$ {parseFloat(price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
                             );
                           }
                         })()}

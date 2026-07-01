@@ -255,29 +255,12 @@ function App() {
                               </>
                             );
                           } else {
-                            // Classic originalPrice vs price
-                            const hasOriginalPrice = product.originalPrice && product.originalPrice > product.price;
-                            const classicDiscount = hasOriginalPrice 
-                              ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) 
-                              : 0;
                             return (
-                              <>
-                                {hasOriginalPrice && (
-                                  <span className="card-original-price">
-                                    R$ {product.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                  </span>
-                                )}
-                                <div className="price-row">
-                                  <span className="card-current-price">
-                                    R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                  </span>
-                                  {hasOriginalPrice && (
-                                    <span className="card-discount-tag">
-                                      {classicDiscount}% OFF
-                                    </span>
-                                  )}
-                                </div>
-                              </>
+                              <div className="price-row">
+                                <span className="card-current-price">
+                                  R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
                             );
                           }
                         })()}

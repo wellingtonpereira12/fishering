@@ -1,6 +1,18 @@
 {
   "products": [
     {
+      "id": "1782866720151",
+      "title": "Calça De Proteção Solar Uv Flex - Mar Negro",
+      "image": "https://http2.mlstatic.com/D_NQ_NP_997989-MLB111612316764_062026-O.webp",
+      "price": 17.79,
+      "originalPrice": 399.9,
+      "url": "https://meli.la/1nYyKcX",
+      "category": "Molinete",
+      "store": "Meli",
+      "coupon": "TESTE",
+      "createdAt": "2026-07-01T00:45:20.151Z"
+    },
+    {
       "id": "101",
       "title": "Molinete de Pesca Marine Sports Sol 1000 - Fricção Dianteira",
       "image": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80",
@@ -121,5 +133,11 @@
       "coupon": null
     }
   ],
-  "coupons": []
+  "coupons": [
+    {
+      "code": "TESTE",
+      "type": "percentage",
+      "value": 10
+    }
+  ]
 }
