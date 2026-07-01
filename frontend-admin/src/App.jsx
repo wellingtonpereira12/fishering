@@ -538,11 +538,11 @@ function App() {
                             return (
                               <>
                                 <span className="card-original-price">
-                                  R$ {origVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  R$ {origVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                                 <div className="price-row">
                                   <span className="card-current-price">
-                                    R$ {promoVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    R$ {promoVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                                 <span className="card-coupon-badge">
@@ -554,7 +554,7 @@ function App() {
                             return (
                               <div className="price-row">
                                 <span className="card-current-price">
-                                  R$ {parseFloat(price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  R$ {parseFloat(price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
                             );
@@ -622,7 +622,7 @@ function App() {
                           </div>
                         </td>
                         <td style={{ fontWeight: 600, color: '#333' }}>
-                          R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td>{p.category}</td>
                         <td>{p.store}</td>
@@ -775,7 +775,7 @@ function App() {
                           />
                           <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                             <span>{p.title} ({p.store})</span>
-                            <strong style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                            <strong style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                           </span>
                         </label>
                       ))
@@ -845,7 +845,7 @@ function App() {
                             </span>
                           </td>
                           <td style={{ fontWeight: 600 }}>
-                            {c.type === 'percentage' ? `${c.value}%` : `R$ ${c.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                            {c.type === 'percentage' ? `${c.value}%` : `R$ ${c.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                           </td>
                           <td style={{ color: 'var(--text-secondary)' }}>
                             {linkedCount} {linkedCount === 1 ? 'produto' : 'produtos'}

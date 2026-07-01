@@ -83,7 +83,7 @@ function App() {
     e.stopPropagation(); // Evita navegar ao clicar em compartilhar
     e.preventDefault();
     const promoPrice = getPromoPrice(product);
-    let shareText = `Confira esta promoção: ${product.title} por apenas R$ ${promoPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}!`;
+    let shareText = `Confira esta promoção: ${product.title} por apenas R$ ${promoPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}!`;
     if (product.coupon) {
       shareText += ` Use o cupom ${product.coupon} para garantir o desconto!`;
     }
@@ -236,11 +236,11 @@ function App() {
                             return (
                               <>
                                 <span className="card-original-price">
-                                  R$ {originalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  R$ {originalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                                 <div className="price-row">
                                   <span className="card-current-price" style={{ color: 'var(--accent-green)' }}>
-                                    R$ {promoPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    R$ {promoPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                   {discountPercentage > 0 && (
                                     <span className="card-discount-tag">
@@ -250,7 +250,7 @@ function App() {
                                 </div>
                                 <div className="card-coupon-badge" style={{ backgroundColor: '#e6f7ed', borderColor: 'rgba(0, 166, 80, 0.15)', color: 'var(--accent-green)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '3px', marginTop: '6px' }}>
                                   <Tag size={10} style={{ transform: 'rotate(-45deg)' }} />
-                                  Cupom: {product.coupon} ({linkedCoupon.type === 'percentage' ? `${linkedCoupon.value}%` : `R$ ${linkedCoupon.value}`} OFF)
+                                  Cupom: {product.coupon} ({linkedCoupon.type === 'percentage' ? `${linkedCoupon.value}%` : `R$ ${linkedCoupon.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} OFF)
                                 </div>
                               </>
                             );
@@ -258,7 +258,7 @@ function App() {
                             return (
                               <div className="price-row">
                                 <span className="card-current-price">
-                                  R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
                             );
