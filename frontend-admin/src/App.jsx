@@ -5,6 +5,10 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
   ? 'http://localhost:5000/api'
   : '/api';
 
+const CLIENT_PORTAL_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:5174/'
+  : '/';
+
 function App() {
   const [products, setProducts] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -335,7 +339,7 @@ function App() {
           </div>
           
           <div className="header-actions">
-            <a href="http://localhost:5174/" className="btn-header-action-primary" target="_blank" rel="noopener noreferrer">
+            <a href={CLIENT_PORTAL_URL} className="btn-header-action-primary" target="_blank" rel="noopener noreferrer">
               <ExternalLink size={15} />
               Ver Portal de Clientes
             </a>
