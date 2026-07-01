@@ -19,10 +19,20 @@ app.use(express.json());
 async function readDB() {
   try {
     const data = await fs.readFile(DB_FILE, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (Array.isArray(parsed)) {
+      return {
+        products: parsed,
+        coupons: []
+      };
+    }
+    return {
+      products: parsed.products || [],
+      coupons: parsed.coupons || []
+    };
   } catch (error) {
-    console.error('Erro ao ler db.json, reiniciando com array vazio:', error);
-    return [];
+    console.error('Erro ao ler db.json, reiniciando banco:', error);
+    return { products: [], coupons: [] };
   }
 }
 
@@ -200,7 +210,7 @@ async function scrapeProduct(url) {
 // API: Listar todos os produtos
 app.get('/api/products', async (req, res) => {
   const db = await readDB();
-  res.json(db);
+  res.json(db.products);
 });
 
 // API: Adicionar um produto
@@ -225,7 +235,7 @@ app.post('/api/products', async (req, res) => {
     createdAt: new Date().toISOString()
   };
 
-  db.unshift(newProduct); // Adiciona no início da lista
+  db.products.unshift(newProduct); // Adiciona no início da lista
   await writeDB(db);
   
   res.status(201).json(newProduct);
@@ -235,16 +245,86 @@ app.post('/api/products', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   const { id } = req.params;
   let db = await readDB();
-  const index = db.findIndex(p => p.id === id);
+  const index = db.products.findIndex(p => p.id === id);
   
   if (index === -1) {
     return res.status(404).json({ error: 'Produto não encontrado.' });
   }
 
-  db.splice(index, 1);
+  db.products.splice(index, 1);
   await writeDB(db);
   
   res.json({ message: 'Produto deletado com sucesso.' });
+});
+
+// API: Listar todos os cupons
+app.get('/api/coupons', async (req, res) => {
+  const db = await readDB();
+  res.json(db.coupons);
+});
+
+// API: Adicionar ou atualizar um cupom e seus produtos vinculados
+app.post('/api/coupons', async (req, res) => {
+  const { code, type, value, productIds } = req.body;
+  
+  if (!code || !type || value === undefined) {
+    return res.status(400).json({ error: 'Código, tipo e valor do cupom são obrigatórios.' });
+  }
+
+  const normalizedCode = code.trim().toUpperCase();
+  const db = await readDB();
+
+  // 1. Criar ou atualizar o cupom
+  const newCoupon = {
+    code: normalizedCode,
+    type, // 'fixed' ou 'percentage'
+    value: parseFloat(value)
+  };
+
+  const existingIndex = db.coupons.findIndex(c => c.code === normalizedCode);
+  if (existingIndex !== -1) {
+    db.coupons[existingIndex] = newCoupon;
+  } else {
+    db.coupons.push(newCoupon);
+  }
+
+  // 2. Atualizar vínculos com produtos
+  if (Array.isArray(productIds)) {
+    db.products.forEach(p => {
+      if (productIds.includes(p.id)) {
+        p.coupon = normalizedCode;
+      } else if (p.coupon === normalizedCode) {
+        p.coupon = null;
+      }
+    });
+  }
+
+  await writeDB(db);
+  res.status(201).json(newCoupon);
+});
+
+// API: Deletar um cupom e remover vínculos de produtos
+app.delete('/api/coupons/:code', async (req, res) => {
+  const { code } = req.params;
+  const normalizedCode = code.trim().toUpperCase();
+  let db = await readDB();
+
+  // 1. Remover o cupom
+  const index = db.coupons.findIndex(c => c.code === normalizedCode);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Cupom não encontrado.' });
+  }
+  db.coupons.splice(index, 1);
+
+  // 2. Remover o cupom dos produtos associados
+  db.products.forEach(p => {
+    if (p.coupon === normalizedCode) {
+      p.coupon = null;
+    }
+  });
+
+  await writeDB(db);
+  res.json({ message: 'Cupom e seus vínculos removidos com sucesso.' });
 });
 
 // API: Scraper de link de produto

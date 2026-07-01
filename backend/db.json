@@ -1,116 +1,141 @@
-[
-  {
-    "id": "101",
-    "title": "Molinete de Pesca Marine Sports Sol 1000 - Fricção Dianteira",
-    "image": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80",
-    "price": 149.90,
-    "originalPrice": 189.00,
-    "url": "https://produto.mercadolivre.com.br/MLB-3561920192-molinete-de-pesca-marine-sports-sol-1000",
-    "category": "Molinete",
-    "createdAt": "2026-06-30T19:40:00.000Z",
-    "store": "Mercado Livre",
-    "coupon": "SOL10"
-  },
-  {
-    "id": "102",
-    "title": "Vara de Pesca Telescópica de Fibra de Vidro Cmik 1,70m para Molinete",
-    "image": "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=600&q=80",
-    "price": 49.90,
-    "originalPrice": 69.90,
-    "url": "https://produto.mercadolivre.com.br/MLB-4512918129-vara-de-pesca-telescopica-cmik-170m",
-    "category": "Varas",
-    "createdAt": "2026-06-30T19:41:00.000Z",
-    "store": "Mercado Livre"
-  },
-  {
-    "id": "103",
-    "title": "Kit de Iscas Artificiais Meia Água Lambari - 5 Peças 3D Holográfica",
-    "image": "https://images.unsplash.com/photo-1516205651411-aef33a44f7c2?auto=format&fit=crop&w=600&q=80",
-    "price": 59.90,
-    "originalPrice": 85.00,
-    "url": "https://produto.mercadolivre.com.br/MLB-2102917392-kit-de-iscas-artificiais-meia-agua",
-    "category": "Iscas",
-    "createdAt": "2026-06-30T19:42:00.000Z",
-    "store": "Mercado Livre",
-    "coupon": "ISCA15"
-  },
-  {
-    "id": "104",
-    "title": "Linha Monofilamento Marine Sports Max Force 0.37mm - 500 Metros",
-    "image": "https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=600&q=80",
-    "price": 38.50,
-    "originalPrice": 45.00,
-    "url": "https://produto.mercadolivre.com.br/MLB-1928472912-linha-monofilamento-max-force-500m",
-    "category": "Acessórios",
-    "createdAt": "2026-06-30T19:43:00.000Z",
-    "store": "Mercado Livre"
-  },
-  {
-    "id": "105",
-    "title": "Maleta Caixa Organizadora de Pesca Flutuante Jogá Combo",
-    "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
-    "price": 119.00,
-    "originalPrice": 149.00,
-    "url": "https://produto.mercadolivre.com.br/MLB-3012920293-caixa-organizadora-de-pesca-joga",
-    "category": "Organizadores",
-    "createdAt": "2026-06-30T19:44:00.000Z",
-    "store": "Mercado Livre"
-  },
-  {
-    "id": "106",
-    "title": "Mochila de Pesca Impermeável Porta Varas e Acessórios Jogá",
-    "image": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80",
-    "price": 189.90,
-    "originalPrice": 220.00,
-    "url": "https://produto.mercadolivre.com.br/MLB-2993817293-mochila-de-pesca-impermeavel-joga",
-    "category": "Organizadores",
-    "createdAt": "2026-06-30T19:45:00.000Z",
-    "store": "Mercado Livre",
-    "coupon": "PESCA20"
-  },
-  {
-    "id": "107",
-    "title": "Alicate de Contenção com Balança Albatroz Grip até 21kg",
-    "image": "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80",
-    "price": 79.90,
-    "originalPrice": 99.00,
-    "url": "https://produto.mercadolivre.com.br/MLB-1029482910-alicate-de-contencao-com-balanca",
-    "category": "Acessórios",
-    "createdAt": "2026-06-30T19:46:00.000Z",
-    "store": "Mercado Livre"
-  },
-  {
-    "id": "108",
-    "title": "Óculos de Sol Polarizado Marine Sports Fishing - Lente Fumê",
-    "image": "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=600&q=80",
-    "price": 95.00,
-    "originalPrice": 125.00,
-    "url": "https://produto.mercadolivre.com.br/MLB-2938173921-oculos-polarizado-marine-sports",
-    "category": "Acessórios",
-    "createdAt": "2026-06-30T19:47:00.000Z",
-    "store": "Mercado Livre",
-    "coupon": "POLAR20"
-  },
-  {
-    "id": "109",
-    "title": "Caiaque de Pesca Leader Milha Náutica Completo com Leme",
-    "image": "https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=600&q=80",
-    "price": 3890.00,
-    "originalPrice": 4200.00,
-    "url": "https://produto.mercadolivre.com.br/MLB-3829183921-caiaque-de-pesca-leader-milha-nautica",
-    "category": "Embarcações",
-    "createdAt": "2026-06-30T19:48:00.000Z",
-    "store": "Mercado Livre"
-  },
-  {
-    "id": "110",
-    "title": "Anzol Marine Sports Chinu Black Super Strong N. 8 - 50 Unidades",
-    "image": "https://images.unsplash.com/photo-1605281317010-fe5fed93f402?auto=format&fit=crop&w=600&q=80",
-    "price": 22.90,
-    "originalPrice": 29.90,
-    "url": "https://produto.mercadolivre.com.br/MLB-1029381729-anzol-marine-sports-chinu-n-8",
-    "category": "Acessórios",
-    "createdAt": "2026-06-30T19:49:00.000Z",
-    "store": "Mercado Livre"
-  }
-]
+{
+  "products": [
+    {
+      "id": "101",
+      "title": "Molinete de Pesca Marine Sports Sol 1000 - Fricção Dianteira",
+      "image": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80",
+      "price": 149.9,
+      "originalPrice": 189,
+      "url": "https://produto.mercadolivre.com.br/MLB-3561920192-molinete-de-pesca-marine-sports-sol-1000",
+      "category": "Molinete",
+      "createdAt": "2026-06-30T19:40:00.000Z",
+      "store": "Mercado Livre",
+      "coupon": "SOL10"
+    },
+    {
+      "id": "102",
+      "title": "Vara de Pesca Telescópica de Fibra de Vidro Cmik 1,70m para Molinete",
+      "image": "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=600&q=80",
+      "price": 49.9,
+      "originalPrice": 69.9,
+      "url": "https://produto.mercadolivre.com.br/MLB-4512918129-vara-de-pesca-telescopica-cmik-170m",
+      "category": "Varas",
+      "createdAt": "2026-06-30T19:41:00.000Z",
+      "store": "Mercado Livre",
+      "coupon": null
+    },
+    {
+      "id": "103",
+      "title": "Kit de Iscas Artificiais Meia Água Lambari - 5 Peças 3D Holográfica",
+      "image": "https://images.unsplash.com/photo-1516205651411-aef33a44f7c2?auto=format&fit=crop&w=600&q=80",
+      "price": 59.9,
+      "originalPrice": 85,
+      "url": "https://produto.mercadolivre.com.br/MLB-2102917392-kit-de-iscas-artificiais-meia-agua",
+      "category": "Iscas",
+      "createdAt": "2026-06-30T19:42:00.000Z",
+      "store": "Mercado Livre",
+      "coupon": "ISCA15"
+    },
+    {
+      "id": "104",
+      "title": "Linha Monofilamento Marine Sports Max Force 0.37mm - 500 Metros",
+      "image": "https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=600&q=80",
+      "price": 38.5,
+      "originalPrice": 45,
+      "url": "https://produto.mercadolivre.com.br/MLB-1928472912-linha-monofilamento-max-force-500m",
+      "category": "Acessórios",
+      "createdAt": "2026-06-30T19:43:00.000Z",
+      "store": "Mercado Livre"
+    },
+    {
+      "id": "105",
+      "title": "Maleta Caixa Organizadora de Pesca Flutuante Jogá Combo",
+      "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+      "price": 119,
+      "originalPrice": 149,
+      "url": "https://produto.mercadolivre.com.br/MLB-3012920293-caixa-organizadora-de-pesca-joga",
+      "category": "Organizadores",
+      "createdAt": "2026-06-30T19:44:00.000Z",
+      "store": "Mercado Livre"
+    },
+    {
+      "id": "106",
+      "title": "Mochila de Pesca Impermeável Porta Varas e Acessórios Jogá",
+      "image": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80",
+      "price": 189.9,
+      "originalPrice": 220,
+      "url": "https://produto.mercadolivre.com.br/MLB-2993817293-mochila-de-pesca-impermeavel-joga",
+      "category": "Organizadores",
+      "createdAt": "2026-06-30T19:45:00.000Z",
+      "store": "Mercado Livre",
+      "coupon": "PESCA20"
+    },
+    {
+      "id": "107",
+      "title": "Alicate de Contenção com Balança Albatroz Grip até 21kg",
+      "image": "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80",
+      "price": 79.9,
+      "originalPrice": 99,
+      "url": "https://produto.mercadolivre.com.br/MLB-1029482910-alicate-de-contencao-com-balanca",
+      "category": "Acessórios",
+      "createdAt": "2026-06-30T19:46:00.000Z",
+      "store": "Mercado Livre"
+    },
+    {
+      "id": "108",
+      "title": "Óculos de Sol Polarizado Marine Sports Fishing - Lente Fumê",
+      "image": "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=600&q=80",
+      "price": 95,
+      "originalPrice": 125,
+      "url": "https://produto.mercadolivre.com.br/MLB-2938173921-oculos-polarizado-marine-sports",
+      "category": "Acessórios",
+      "createdAt": "2026-06-30T19:47:00.000Z",
+      "store": "Mercado Livre",
+      "coupon": "POLAR20"
+    },
+    {
+      "id": "109",
+      "title": "Caiaque de Pesca Leader Milha Náutica Completo com Leme",
+      "image": "https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=600&q=80",
+      "price": 3890,
+      "originalPrice": 4200,
+      "url": "https://produto.mercadolivre.com.br/MLB-3829183921-caiaque-de-pesca-leader-milha-nautica",
+      "category": "Embarcações",
+      "createdAt": "2026-06-30T19:48:00.000Z",
+      "store": "Mercado Livre"
+    },
+    {
+      "id": "110",
+      "title": "Anzol Marine Sports Chinu Black Super Strong N. 8 - 50 Unidades",
+      "image": "https://images.unsplash.com/photo-1605281317010-fe5fed93f402?auto=format&fit=crop&w=600&q=80",
+      "price": 22.9,
+      "originalPrice": 29.9,
+      "url": "https://produto.mercadolivre.com.br/MLB-1029381729-anzol-marine-sports-chinu-n-8",
+      "category": "Acessórios",
+      "createdAt": "2026-06-30T19:49:00.000Z",
+      "store": "Mercado Livre"
+    }
+  ],
+  "coupons": [
+    {
+      "code": "SOL10",
+      "type": "percentage",
+      "value": 10
+    },
+    {
+      "code": "ISCA15",
+      "type": "percentage",
+      "value": 15
+    },
+    {
+      "code": "PESCA20",
+      "type": "fixed",
+      "value": 20
+    },
+    {
+      "code": "POLAR20",
+      "type": "percentage",
+      "value": 20
+    }
+  ]
+}

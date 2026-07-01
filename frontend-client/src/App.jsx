@@ -7,6 +7,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
 
 function App() {
   const [products, setProducts] = useState([]);
+  const [coupons, setCoupons] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedCoupon, setSelectedCoupon] = useState('Todos'); // 'Todos' means no coupon filter
@@ -14,15 +15,22 @@ function App() {
   const [error, setError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
-  // Fetch products from backend
-  const fetchProducts = async () => {
+  // Fetch products and coupons from backend
+  const fetchData = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE}/products`);
-      if (!response.ok) throw new Error('Não foi possível carregar os produtos.');
-      const data = await response.json();
-      setProducts(data);
+      const [prodRes, coupRes] = await Promise.all([
+        fetch(`${API_BASE}/products`),
+        fetch(`${API_BASE}/coupons`)
+      ]);
+      if (!prodRes.ok || !coupRes.ok) throw new Error('Não foi possível carregar os dados do servidor.');
+      
+      const prodData = await prodRes.json();
+      const coupData = await coupRes.json();
+      
+      setProducts(prodData);
+      setCoupons(coupData);
     } catch (err) {
       console.error(err);
       setError('Erro ao conectar com o backend. Verifique se o servidor está rodando.');
@@ -32,8 +40,22 @@ function App() {
   };
 
   useEffect(() => {
-    fetchProducts();
+    fetchData();
   }, []);
+
+  // Helper to calculate promotional price
+  const getPromoPrice = (product) => {
+    if (!product.coupon) return product.price;
+    const linkedCoupon = coupons.find(c => c.code === product.coupon);
+    if (linkedCoupon) {
+      if (linkedCoupon.type === 'percentage') {
+        return product.price * (1 - linkedCoupon.value / 100);
+      } else {
+        return Math.max(0, product.price - linkedCoupon.value);
+      }
+    }
+    return product.price;
+  };
 
   // Extract all unique categories
   const categories = ['Todos', ...new Set(products.map(p => p.category || 'Geral'))];
@@ -60,7 +82,8 @@ function App() {
   const handleShare = (e, product) => {
     e.stopPropagation(); // Evita navegar ao clicar em compartilhar
     e.preventDefault();
-    let shareText = `Confira esta promoção: ${product.title} por apenas R$ ${product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}!`;
+    const promoPrice = getPromoPrice(product);
+    let shareText = `Confira esta promoção: ${product.title} por apenas R$ ${promoPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}!`;
     if (product.coupon) {
       shareText += ` Use o cupom ${product.coupon} para garantir o desconto!`;
     }
@@ -154,7 +177,7 @@ function App() {
           ) : error ? (
             <div className="empty-state">
               <p style={{ color: 'var(--danger)', fontWeight: 600 }}>{error}</p>
-              <button className="btn-buy" onClick={fetchProducts} style={{ margin: '16px auto 0', maxWidth: '200px' }}>
+              <button className="btn-buy" onClick={fetchData} style={{ margin: '16px auto 0', maxWidth: '200px' }}>
                 <RefreshCw size={14} style={{ marginRight: '6px' }} /> Tentar Novamente
               </button>
             </div>
@@ -202,40 +225,69 @@ function App() {
                       </h2>
 
                       <div className="card-price-section">
-                        {product.originalPrice && product.originalPrice > product.price ? (
-                          <>
-                            <span className="card-original-price">
-                              R$ {product.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </span>
-                            <div className="price-row">
-                              <span className="card-current-price">
-                                R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </span>
-                              <span className="card-discount-tag">
-                                {discount}% OFF
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="price-row">
-                            <span className="card-current-price">
-                              R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        )}
+                        {(() => {
+                          const linkedCoupon = coupons.find(c => c.code === product.coupon);
+                          const promoPrice = getPromoPrice(product);
+                          const hasCoupon = !!linkedCoupon;
+                          
+                          if (hasCoupon) {
+                            const originalVal = product.price;
+                            const couponDiscount = originalVal - promoPrice;
+                            const discountPercentage = Math.round((couponDiscount / originalVal) * 100);
+                            
+                            return (
+                              <>
+                                <span className="card-original-price">
+                                  R$ {originalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                                <div className="price-row">
+                                  <span className="card-current-price" style={{ color: 'var(--accent-green)' }}>
+                                    R$ {promoPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </span>
+                                  {discountPercentage > 0 && (
+                                    <span className="card-discount-tag">
+                                      {discountPercentage}% OFF
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="card-coupon-badge" style={{ backgroundColor: '#e6f7ed', borderColor: 'rgba(0, 166, 80, 0.15)', color: 'var(--accent-green)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '3px', marginTop: '6px' }}>
+                                  <Tag size={10} style={{ transform: 'rotate(-45deg)' }} />
+                                  Cupom: {product.coupon} ({linkedCoupon.type === 'percentage' ? `${linkedCoupon.value}%` : `R$ ${linkedCoupon.value}`} OFF)
+                                </div>
+                              </>
+                            );
+                          } else {
+                            // Classic originalPrice vs price
+                            const hasOriginalPrice = product.originalPrice && product.originalPrice > product.price;
+                            const classicDiscount = hasOriginalPrice 
+                              ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) 
+                              : 0;
+                            return (
+                              <>
+                                {hasOriginalPrice && (
+                                  <span className="card-original-price">
+                                    R$ {product.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                                <div className="price-row">
+                                  <span className="card-current-price">
+                                    R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </span>
+                                  {hasOriginalPrice && (
+                                    <span className="card-discount-tag">
+                                      {classicDiscount}% OFF
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          }
+                        })()}
 
                         {isFreeShipping && (
-                          <span className="free-shipping-text">
+                          <span className="free-shipping-text" style={{ display: 'block', marginTop: '4px' }}>
                             Frete grátis
                           </span>
-                        )}
-
-                        {/* Coupon Tag below prices */}
-                        {product.coupon && (
-                          <div className="card-coupon-badge">
-                            <Tag size={10} style={{ transform: 'rotate(-45deg)' }} />
-                            Cupom: {product.coupon}
-                          </div>
                         )}
                       </div>
 
