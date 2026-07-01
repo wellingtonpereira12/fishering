@@ -196,8 +196,6 @@ function App() {
                   ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) 
                   : 0;
 
-                const isFreeShipping = product.price >= 79.0;
-
                 return (
                   <a 
                     key={product.id} 
@@ -283,12 +281,6 @@ function App() {
                             );
                           }
                         })()}
-
-                        {isFreeShipping && (
-                          <span className="free-shipping-text" style={{ display: 'block', marginTop: '4px' }}>
-                            Frete grátis
-                          </span>
-                        )}
                       </div>
 
                       <div className="card-actions">
