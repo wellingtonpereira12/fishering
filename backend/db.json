@@ -9,7 +9,7 @@
       "url": "https://meli.la/1nYyKcX",
       "category": "Molinete",
       "store": "Meli",
-      "coupon": null,
+      "coupon": "PESCA",
       "createdAt": "2026-07-01T00:49:13.341Z"
     },
     {
@@ -21,7 +21,7 @@
       "url": "https://meli.la/1nYyKcX",
       "category": "Molinete",
       "store": "Meli",
-      "coupon": "TESTE",
+      "coupon": "PESCA",
       "createdAt": "2026-07-01T00:45:20.151Z"
     },
     {
@@ -147,9 +147,10 @@
   ],
   "coupons": [
     {
-      "code": "TESTE",
+      "code": "PESCA",
       "type": "percentage",
-      "value": 10
+      "value": 10,
+      "maxDiscount": 40
     }
   ]
 }

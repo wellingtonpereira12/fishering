@@ -257,6 +257,11 @@ function App() {
                                   <Tag size={10} style={{ transform: 'rotate(-45deg)' }} />
                                   Cupom: {product.coupon} ({linkedCoupon.type === 'percentage' ? `${linkedCoupon.value}%` : `R$ ${linkedCoupon.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} OFF)
                                 </div>
+                                {couponDiscount > 0 && (
+                                  <div style={{ backgroundColor: '#fff3e0', color: '#e65100', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '3px', marginTop: '4px' }}>
+                                    💰 Você economiza R$ {couponDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </div>
+                                )}
                               </>
                             );
                           } else {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link as LinkIcon, Tag, DollarSign, ImageIcon, FileText, Sparkles, Trash2, Plus, RefreshCw, Sun, Moon, ExternalLink, ShoppingBag } from 'lucide-react';
+import { Link as LinkIcon, Tag, DollarSign, ImageIcon, FileText, Sparkles, Trash2, Plus, RefreshCw, Sun, Moon, ExternalLink, ShoppingBag, Download } from 'lucide-react';
 
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000/api'
@@ -269,6 +269,40 @@ function App() {
       console.error(err);
       showToast('Erro ao tentar excluir o cupom.');
     }
+  };
+
+  // Export all products to a CSV file (Brazilian style with semicolon separator and Excel BOM)
+  const handleExportCSV = () => {
+    if (products.length === 0) {
+      showToast('Nenhum produto para exportar.');
+      return;
+    }
+    
+    let csvContent = "\uFEFFID;Título;Preço (R$);Categoria;Loja;Cupom;URL;Imagem;Criado Em\n";
+    
+    products.forEach(p => {
+      const priceStr = p.price ? p.price.toString().replace('.', ',') : '0,00';
+      const titleClean = p.title ? p.title.replace(/"/g, '""') : '';
+      const categoryClean = p.category ? p.category.replace(/"/g, '""') : '';
+      const storeClean = p.store ? p.store.replace(/"/g, '""') : '';
+      const couponClean = p.coupon ? p.coupon.replace(/"/g, '""') : '-';
+      const urlClean = p.url ? p.url.replace(/"/g, '""') : '';
+      const imageClean = p.image ? p.image.replace(/"/g, '""') : '';
+      const dateStr = p.createdAt ? new Date(p.createdAt).toLocaleString('pt-BR') : '-';
+      
+      csvContent += `"${p.id}";"${titleClean}";"${priceStr}";"${categoryClean}";"${storeClean}";"${couponClean}";"${urlClean}";"${imageClean}";"${dateStr}"\n`;
+    });
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "produtos_fishering.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Produtos exportados com sucesso! 📊');
   };
 
   // Toggle checkbox for linking products to coupon
@@ -582,9 +616,19 @@ function App() {
 
             {/* Registered Products List */}
             <div className="admin-table-container">
-              <div className="admin-table-title">
-                <Tag size={16} style={{ color: 'var(--accent-blue)' }} />
-                Produtos Cadastrados ({products.length})
+              <div className="admin-table-title" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Tag size={16} style={{ color: 'var(--accent-blue)' }} />
+                  Produtos Cadastrados ({products.length})
+                </div>
+                <button
+                  onClick={handleExportCSV}
+                  className="btn-header-action-primary"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', height: 'auto', backgroundColor: '#00a650' }}
+                >
+                  <Download size={14} />
+                  Exportar CSV
+                </button>
               </div>
               
               {loadingList ? (
