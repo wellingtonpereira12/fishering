@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link as LinkIcon, Tag, DollarSign, ImageIcon, FileText, Sparkles, Trash2, Plus, RefreshCw, Sun, Moon, ExternalLink, ShoppingBag, Download } from 'lucide-react';
+import { Link as LinkIcon, Tag, DollarSign, ImageIcon, FileText, Sparkles, Trash2, Plus, RefreshCw, Sun, Moon, ExternalLink, ShoppingBag, Download, Upload } from 'lucide-react';
 
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000/api'
@@ -303,6 +303,97 @@ function App() {
     link.click();
     document.body.removeChild(link);
     showToast('Produtos exportados com sucesso! 📊');
+  };
+
+  // Import products from a CSV file
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const text = evt.target.result;
+      
+      try {
+        const lines = [];
+        const linesRaw = text.split(/\r?\n/);
+        
+        // Skip header line
+        for (let i = 1; i < linesRaw.length; i++) {
+          const line = linesRaw[i].trim();
+          if (!line) continue;
+          
+          const fields = [];
+          let currentField = '';
+          let inQuotes = false;
+          
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              if (inQuotes && line[j+1] === '"') {
+                currentField += '"';
+                j++;
+              } else {
+                inQuotes = !inQuotes;
+              }
+            } else if (char === ';' && !inQuotes) {
+              fields.push(currentField);
+              currentField = '';
+            } else {
+              currentField += char;
+            }
+          }
+          fields.push(currentField);
+          
+          // Map to backend fields if valid row
+          if (fields.length >= 8) {
+            const price = parseFloat(fields[2].replace(',', '.'));
+            if (!isNaN(price) && fields[1] && fields[7] && fields[6]) {
+              lines.push({
+                title: fields[1],
+                price: price,
+                category: fields[3] || 'Geral',
+                store: fields[4] || 'Mercado Livre',
+                coupon: fields[5] === '-' || !fields[5] ? null : fields[5],
+                url: fields[6],
+                image: fields[7]
+              });
+            }
+          }
+        }
+
+        if (lines.length === 0) {
+          showToast('Nenhum produto válido encontrado no arquivo CSV.');
+          return;
+        }
+
+        const confirmImport = window.confirm(`Deseja importar ${lines.length} produtos do arquivo selecionado?`);
+        if (!confirmImport) return;
+
+        setLoadingList(true);
+        const response = await fetch(`${API_BASE}/products/bulk`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(lines)
+        });
+
+        if (response.ok) {
+          showToast(`${lines.length} produtos importados com sucesso! 📥🎣`);
+          fetchProducts();
+        } else {
+          const data = await response.json();
+          showToast(`Erro ao importar: ${data.error}`);
+          setLoadingList(false);
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao ler ou processar o arquivo CSV.');
+        setLoadingList(false);
+      }
+    };
+    
+    reader.readAsText(file, 'utf-8');
+    e.target.value = ''; // Reset input
   };
 
   // Toggle checkbox for linking products to coupon
@@ -621,14 +712,29 @@ function App() {
                   <Tag size={16} style={{ color: 'var(--accent-blue)' }} />
                   Produtos Cadastrados ({products.length})
                 </div>
-                <button
-                  onClick={handleExportCSV}
-                  className="btn-header-action-primary"
-                  style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', height: 'auto', backgroundColor: '#00a650' }}
-                >
-                  <Download size={14} />
-                  Exportar CSV
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <label
+                    className="btn-header-action-primary"
+                    style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', height: 'auto', backgroundColor: '#3483fa', cursor: 'pointer', margin: 0 }}
+                  >
+                    <Upload size={14} />
+                    Importar CSV
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleImportCSV}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  <button
+                    onClick={handleExportCSV}
+                    className="btn-header-action-primary"
+                    style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', height: 'auto', backgroundColor: '#00a650' }}
+                  >
+                    <Download size={14} />
+                    Exportar CSV
+                  </button>
+                </div>
               </div>
               
               {loadingList ? (

@@ -241,6 +241,44 @@ app.post('/api/products', async (req, res) => {
   res.status(201).json(newProduct);
 });
 
+// API: Adicionar vários produtos em lote (Bulk Import)
+app.post('/api/products/bulk', async (req, res) => {
+  const items = req.body;
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ error: 'Os dados devem ser uma lista de produtos.' });
+  }
+
+  const db = await readDB();
+  const addedProducts = [];
+  const timestamp = Date.now();
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const { title, image, price, originalPrice, url, category, store, coupon } = item;
+    if (!title || !image || price === undefined || !url) {
+      continue;
+    }
+
+    const newProduct = {
+      id: (timestamp + i).toString(),
+      title: title.trim(),
+      image: image.trim(),
+      price: parseFloat(price),
+      originalPrice: originalPrice ? parseFloat(originalPrice) : null,
+      url: url.trim(),
+      category: category || 'Geral',
+      store: store || 'Loja Externa',
+      coupon: coupon && coupon !== '-' ? coupon.trim().toUpperCase() : null,
+      createdAt: new Date(timestamp + i).toISOString()
+    };
+    db.products.unshift(newProduct);
+    addedProducts.push(newProduct);
+  }
+
+  await writeDB(db);
+  res.status(201).json(addedProducts);
+});
+
 // API: Deletar um produto
 app.delete('/api/products/:id', async (req, res) => {
   const { id } = req.params;
