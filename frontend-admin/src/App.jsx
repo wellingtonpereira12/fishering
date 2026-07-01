@@ -387,7 +387,7 @@ function App() {
         }
       } catch (err) {
         console.error(err);
-        showToast('Erro ao ler ou processar o arquivo CSV.');
+        showToast('Erro ao ler ou processar o arquivo CSV: ' + err.message);
         setLoadingList(false);
       }
     };
