@@ -422,29 +422,16 @@ function App() {
                       />
                     </div>
 
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Preço Original (R$)</label>
-                        <input 
-                          type="number" 
-                          step="0.01" 
-                          placeholder="Ex: 99.90" 
-                          value={price} 
-                          onChange={(e) => setPrice(e.target.value)} 
-                          required 
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <label>Preço Sem Desconto (R$ - Opcional)</label>
-                        <input 
-                          type="number" 
-                          step="0.01" 
-                          placeholder="Opcional" 
-                          value={originalPrice} 
-                          onChange={(e) => setOriginalPrice(e.target.value)} 
-                        />
-                      </div>
+                    <div className="form-group">
+                      <label>Preço do Produto (R$)</label>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="Ex: 99.90" 
+                        value={price} 
+                        onChange={(e) => setPrice(e.target.value)} 
+                        required 
+                      />
                     </div>
 
                     <div className="form-row">
