@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link as LinkIcon, Tag, DollarSign, ImageIcon, FileText, Sparkles, Trash2, Plus, RefreshCw, Sun, Moon, ExternalLink, ShoppingBag, Download, Upload } from 'lucide-react';
+import { Link as LinkIcon, Tag, DollarSign, ImageIcon, FileText, Sparkles, Trash2, Plus, RefreshCw, Sun, Moon, ExternalLink, ShoppingBag, Download, Upload, MessageSquare, Send, Bot, Terminal } from 'lucide-react';
 
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000/api'
@@ -36,6 +36,66 @@ function App() {
   const [submittingCoupon, setSubmittingCoupon] = useState(false);
   const [couponMaxDiscount, setCouponMaxDiscount] = useState('');
   const [couponMinProductPrice, setCouponMinProductPrice] = useState('');
+
+  // Chat Assistant state
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'model', content: 'Olá! Sou o Assistente Inteligente da Fishering. Como posso te ajudar hoje? Posso listar produtos, cadastrar ou excluir cupons, cadastrar novos itens via link ou tirar dúvidas.' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [sendingChat, setSendingChat] = useState(false);
+  const [chatApiKey, setChatApiKey] = useState(localStorage.getItem('fishering_gemini_key') || '');
+  const [chatLogs, setChatLogs] = useState([]);
+
+  const handleSendChat = async (e) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim() || sendingChat) return;
+
+    const userText = chatInput.trim();
+    setChatInput('');
+    setSendingChat(true);
+    setChatLogs([]);
+
+    const newMessages = [...chatMessages, { role: 'user', content: userText }];
+    setChatMessages(newMessages);
+
+    try {
+      const response = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: newMessages,
+          apiKey: chatApiKey || undefined
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+
+      setChatMessages(prev => [...prev, { role: 'model', content: data.content }]);
+      if (data.logs && data.logs.length > 0) {
+        setChatLogs(data.logs);
+      }
+      
+      // Refresh database lists since the AI may have added/deleted something
+      fetchProducts();
+      fetchCoupons();
+      
+    } catch (err) {
+      setChatMessages(prev => [...prev, { role: 'model', content: `❌ Erro: ${err.message}` }]);
+    } finally {
+      setSendingChat(false);
+    }
+  };
+
+  const handleSaveApiKey = (key) => {
+    setChatApiKey(key);
+    localStorage.setItem('fishering_gemini_key', key);
+    showToast('Chave de API do Gemini salva localmente!');
+  };
 
   // Helper to calculate coupon discount in admin
   const getCouponDiscount = (productPrice, coupon) => {
@@ -448,6 +508,13 @@ function App() {
                 <Tag size={16} />
                 Cupons
               </button>
+              <button 
+                className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+                onClick={() => setActiveTab('chat')}
+              >
+                <MessageSquare size={16} />
+                Assistente IA
+              </button>
             </div>
           </div>
           
@@ -462,7 +529,7 @@ function App() {
 
       {/* Main Layout Area */}
       <div className="app-wrapper">
-        {activeTab === 'products' ? (
+        {activeTab === 'products' && (
           <>
             {/* Scraper Input Panel */}
             <div className="form-card">
@@ -761,7 +828,9 @@ function App() {
               )}
             </div>
           </>
-        ) : (
+        )}
+
+        {activeTab === 'coupons' && (
           /* Coupons Management Tab content */
           <>
             {/* Coupon Creation Panel */}
@@ -919,6 +988,161 @@ function App() {
               )}
             </div>
           </>
+        )}
+
+        {activeTab === 'chat' && (
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', width: '100%', alignItems: 'stretch' }}>
+            {/* Main Chat Box */}
+            <div className="form-card" style={{ flex: 2, minWidth: '320px', display: 'flex', flexDirection: 'column', height: '650px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '12px', marginBottom: '12px' }}>
+                <h2 className="form-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Bot size={22} style={{ color: 'var(--accent-blue)' }} />
+                  Assistente Inteligente (Gemini 2.5)
+                </h2>
+                <span style={{ fontSize: '0.8rem', padding: '4px 8px', background: '#e3f2fd', color: '#1565c0', borderRadius: '12px', fontWeight: 600 }}>
+                  Conectado à Base Fishering
+                </span>
+              </div>
+
+              {/* API Key Configuration Input */}
+              <div style={{ background: '#f5f5f5', padding: '10px 14px', borderRadius: '6px', marginBottom: '12px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Chave de API Gemini:</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({chatApiKey ? 'Configurada' : 'Usando padrão do servidor .env'})</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '200px', justifyContent: 'flex-end' }}>
+                  <input
+                    type="password"
+                    placeholder="Cole sua API Key (opcional)..."
+                    value={chatApiKey}
+                    onChange={(e) => setChatApiKey(e.target.value)}
+                    style={{ padding: '6px 10px', fontSize: '0.85rem', border: '1px solid #ccc', borderRadius: '4px', flex: 1, maxWidth: '250px' }}
+                  />
+                  <button
+                    onClick={() => handleSaveApiKey(chatApiKey)}
+                    className="btn-action-primary"
+                    style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                  >
+                    Salvar
+                  </button>
+                  {chatApiKey && (
+                    <button
+                      onClick={() => handleSaveApiKey('')}
+                      style={{ background: 'transparent', border: 'none', color: '#f73f55', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Message Feed */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', borderRadius: '6px', background: '#fafafa', marginBottom: '12px' }}>
+                {chatMessages.map((m, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                    <div style={{ 
+                      maxWidth: '80%', 
+                      padding: '12px 16px', 
+                      borderRadius: '12px', 
+                      fontSize: '0.95rem',
+                      lineHeight: '1.4',
+                      background: m.role === 'user' ? 'var(--accent-blue)' : '#ffffff',
+                      color: m.role === 'user' ? '#ffffff' : 'var(--text-primary)',
+                      border: m.role === 'user' ? 'none' : '1px solid #e0e0e0',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      {m.role === 'model' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-blue)', textTransform: 'uppercase' }}>
+                          <Bot size={13} />
+                          Assistente
+                        </div>
+                      )}
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+                {sendingChat && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
+                    <div style={{ padding: '12px 16px', borderRadius: '12px', background: '#ffffff', border: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <RefreshCw size={14} className="animate-spin" style={{ animation: 'spin 1.5s linear infinite', color: 'var(--accent-blue)' }} />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Pensando e executando operações...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Input form */}
+              <form onSubmit={handleSendChat} style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Ex: 'Quais cupons estão cadastrados?', 'Exclua o produto X', 'Cadastre o cupom OFF50'..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  disabled={sendingChat}
+                  style={{ flex: 1, padding: '12px 16px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.95rem' }}
+                />
+                <button
+                  type="submit"
+                  disabled={sendingChat || !chatInput.trim()}
+                  className="btn-action-primary"
+                  style={{ padding: '0 20px', display: 'flex', alignItems: 'center', gap: '6px', height: 'auto' }}
+                >
+                  <Send size={16} />
+                  Enviar
+                </button>
+              </form>
+            </div>
+
+            {/* Side Operations logs */}
+            <div className="form-card" style={{ flex: 1, minWidth: '280px', display: 'flex', flexDirection: 'column', height: '650px', overflowY: 'auto' }}>
+              <h2 className="form-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #eee', paddingBottom: '12px', marginBottom: '12px' }}>
+                <Terminal size={20} style={{ color: 'var(--accent-blue)' }} />
+                Logs de Operações (MCP)
+              </h2>
+              
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Veja em tempo real as ferramentas de banco de dados que a IA aciona para responder às suas solicitações.
+              </p>
+
+              <div style={{ flex: 1, background: '#1e1e1e', color: '#a6accd', fontFamily: 'monospace', padding: '12px', borderRadius: '6px', overflowY: 'auto', fontSize: '0.85rem' }}>
+                {chatLogs.length === 0 ? (
+                  <span style={{ color: '#5c6370' }}>Nenhuma operação executada ainda nesta chamada.</span>
+                ) : (
+                  chatLogs.map((log, idx) => (
+                    <div key={idx} style={{ marginBottom: '6px', color: '#4fc3f7' }}>
+                      {log}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Suggestions chips */}
+              <div style={{ marginTop: '16px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Sugestões de Comandos:</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button 
+                    onClick={() => setChatInput('Quais produtos estão cadastrados?')} 
+                    style={{ textAlign: 'left', background: 'transparent', border: '1px solid #ddd', padding: '8px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer' }}
+                  >
+                    🔍 "Quais produtos estão cadastrados?"
+                  </button>
+                  <button 
+                    onClick={() => setChatInput('Listar cupons ativos')} 
+                    style={{ textAlign: 'left', background: 'transparent', border: '1px solid #ddd', padding: '8px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer' }}
+                  >
+                    🎟️ "Listar cupons ativos"
+                  </button>
+                  <button 
+                    onClick={() => setChatInput('Cadastre o cupom BRASIL10 com 10% de desconto e preço mínimo R$100')} 
+                    style={{ textAlign: 'left', background: 'transparent', border: '1px solid #ddd', padding: '8px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer' }}
+                  >
+                    ✍️ "Cadastre o cupom BRASIL10..."
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
