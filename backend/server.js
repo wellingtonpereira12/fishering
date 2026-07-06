@@ -4,14 +4,64 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'fishering_super_secret_key_12345';
 
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true // Allow receiving secure cookies from the frontend
+}));
 app.use(express.json());
+
+// Custom cookie parsing middleware
+app.use((req, res, next) => {
+  const rawCookies = req.headers.cookie || '';
+  req.cookies = {};
+  rawCookies.split(';').forEach(c => {
+    const parts = c.split('=');
+    if (parts.length === 2) {
+      req.cookies[parts[0].trim()] = decodeURIComponent(parts[1].trim());
+    }
+  });
+  next();
+});
+
+
+// Simple memory-based IP rate limiter for login
+const loginAttempts = new Map();
+const loginRateLimiter = (req, res, next) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const now = Date.now();
+  const attempt = loginAttempts.get(ip);
+  
+  if (attempt && attempt.lockUntil > now) {
+    const remainingMin = Math.ceil((attempt.lockUntil - now) / 60000);
+    return res.status(429).json({ error: `Muitas tentativas de login. Tente novamente em ${remainingMin} minuto(s).` });
+  }
+  next();
+};
+
+// JWT Authentication Middleware
+const authenticate = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ error: 'Não autorizado. Faça login para acessar este recurso.' });
+  }
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Sessão inválida ou expirada. Faça login novamente.' });
+  }
+};
 
 // MySQL connection pool
 const pool = mysql.createPool({
@@ -227,6 +277,104 @@ async function scrapeProduct(url) {
   }
 }
 
+// API: Realizar login do administrador
+app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
+  const { email, password, rememberMe } = req.body;
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  
+  if (!email || !password) {
+    return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
+  }
+  
+  try {
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email.trim()]);
+    const now = Date.now();
+    
+    if (rows.length === 0) {
+      const attempt = loginAttempts.get(ip) || { count: 0, lockUntil: 0 };
+      attempt.count += 1;
+      if (attempt.count >= 5) {
+        attempt.lockUntil = now + 15 * 60 * 1000;
+        loginAttempts.set(ip, attempt);
+        return res.status(429).json({ error: 'Muitas tentativas de login. Bloqueado por 15 minutos.' });
+      }
+      loginAttempts.set(ip, attempt);
+      
+      console.warn(`[AUTH] Falha de login para ${email} (IP: ${ip})`);
+      return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+    }
+    
+    const user = rows[0];
+    const match = await bcrypt.compare(password, user.password);
+    
+    if (!match) {
+      const attempt = loginAttempts.get(ip) || { count: 0, lockUntil: 0 };
+      attempt.count += 1;
+      if (attempt.count >= 5) {
+        attempt.lockUntil = now + 15 * 60 * 1000;
+        loginAttempts.set(ip, attempt);
+        return res.status(429).json({ error: 'Muitas tentativas de login. Bloqueado por 15 minutos.' });
+      }
+      loginAttempts.set(ip, attempt);
+      
+      console.warn(`[AUTH] Falha de login para ${email} (IP: ${ip})`);
+      return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+    }
+    
+    loginAttempts.delete(ip);
+    console.log(`[AUTH] Login com sucesso: ${email} (IP: ${ip})`);
+    
+    const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: rememberMe ? '30d' : '2h' }
+    );
+    
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: maxAge
+    });
+    
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error('[AUTH] Erro ao fazer login:', error);
+    res.status(500).json({ error: 'Erro interno do servidor.' });
+  }
+});
+
+// API: Logout
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict'
+  });
+  res.json({ success: true, message: 'Logout realizado com sucesso.' });
+});
+
+// API: Obter dados do usuário logado
+app.get('/api/auth/me', (req, res) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ error: 'Não autenticado.' });
+  }
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({ user: { id: decoded.id, email: decoded.email } });
+  } catch (err) {
+    res.status(401).json({ error: 'Sessão inválida.' });
+  }
+});
+
 // API: Listar todos os produtos
 app.get('/api/products', async (req, res) => {
   try {
@@ -263,7 +411,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 // API: Adicionar um produto
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', authenticate, async (req, res) => {
   const { title, image, price, originalPrice, url, category, store, coupon } = req.body;
   
   if (!title || !image || price === undefined || !url) {
@@ -363,7 +511,7 @@ app.post('/api/products/bulk', async (req, res) => {
 });
 
 // API: Deletar um produto
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await pool.query('DELETE FROM products WHERE id = ?', [id]);
@@ -395,7 +543,7 @@ app.get('/api/coupons', async (req, res) => {
 });
 
 // API: Adicionar ou atualizar um cupom
-app.post('/api/coupons', async (req, res) => {
+app.post('/api/coupons', authenticate, async (req, res) => {
   const { code, type, value, maxDiscount, minProductPrice } = req.body;
   
   if (!code || !type || value === undefined) {
@@ -428,7 +576,7 @@ app.post('/api/coupons', async (req, res) => {
 });
 
 // API: Deletar um cupom e remover vínculos de produtos
-app.delete('/api/coupons/:code', async (req, res) => {
+app.delete('/api/coupons/:code', authenticate, async (req, res) => {
   const { code } = req.params;
   const normalizedCode = code.trim().toUpperCase();
 
@@ -445,7 +593,7 @@ app.delete('/api/coupons/:code', async (req, res) => {
 });
 
 // API: Scraper de link de produto
-app.get('/api/scrape', async (req, res) => {
+app.get('/api/scrape', authenticate, async (req, res) => {
   const { url } = req.query;
   
   if (!url) {
@@ -461,7 +609,7 @@ app.get('/api/scrape', async (req, res) => {
 });
 
 // API: Obter valor de configuração do banco
-app.get('/api/settings/:key', async (req, res) => {
+app.get('/api/settings/:key', authenticate, async (req, res) => {
   const { key } = req.params;
   try {
     const [rows] = await pool.query('SELECT value FROM settings WHERE `key` = ?', [key]);
@@ -486,7 +634,7 @@ app.get('/api/settings/:key', async (req, res) => {
 });
 
 // API: Salvar/Atualizar configuração no banco
-app.post('/api/settings', async (req, res) => {
+app.post('/api/settings', authenticate, async (req, res) => {
   const { key, value } = req.body;
   if (!key) {
     return res.status(400).json({ error: 'Chave de configuração é obrigatória.' });
@@ -580,7 +728,7 @@ const geminiTools = [
 ];
 
 // API: AI Chat Assistant with Gemini 2.5 Function Calling
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', authenticate, async (req, res) => {
   const { messages, apiKey: clientKey } = req.body;
   
   let apiKey = clientKey;

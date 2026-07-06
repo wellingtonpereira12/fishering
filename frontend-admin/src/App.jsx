@@ -9,7 +9,20 @@ const CLIENT_PORTAL_URL = window.location.hostname === 'localhost' || window.loc
   ? 'http://localhost:5174/'
   : '/';
 
+const secureFetch = (url, options = {}) => {
+  options.credentials = 'include';
+  return fetch(url, options);
+};
+
 function App() {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginRememberMe, setLoginRememberMe] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+
   const [products, setProducts] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [scraping, setScraping] = useState(false);
@@ -59,7 +72,7 @@ function App() {
     setChatMessages(newMessages);
 
     try {
-      const response = await fetch(`${API_BASE}/chat`, {
+      const response = await secureFetch(`${API_BASE}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +106,7 @@ function App() {
 
   const handleSaveApiKey = async (key) => {
     try {
-      const response = await fetch(`${API_BASE}/settings`, {
+      const response = await secureFetch(`${API_BASE}/settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +165,7 @@ function App() {
   const fetchProducts = async () => {
     setLoadingList(true);
     try {
-      const response = await fetch(`${API_BASE}/products`);
+      const response = await secureFetch(`${API_BASE}/products`);
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
@@ -169,7 +182,7 @@ function App() {
   const fetchCoupons = async () => {
     setLoadingCoupons(true);
     try {
-      const response = await fetch(`${API_BASE}/coupons`);
+      const response = await secureFetch(`${API_BASE}/coupons`);
       if (response.ok) {
         const data = await response.json();
         setCoupons(data);
@@ -184,7 +197,7 @@ function App() {
   // Fetch Gemini API Key setting from database
   const fetchGeminiKey = async () => {
     try {
-      const response = await fetch(`${API_BASE}/settings/gemini_api_key`);
+      const response = await secureFetch(`${API_BASE}/settings/gemini_api_key`);
       if (response.ok) {
         const data = await response.json();
         if (data.value) {
@@ -196,10 +209,75 @@ function App() {
     }
   };
 
+  const verifySession = async () => {
+    try {
+      const response = await secureFetch(`${API_BASE}/auth/me`);
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        
+        // Load data since authenticated
+        fetchProducts();
+        fetchCoupons();
+        fetchGeminiKey();
+      }
+    } catch (err) {
+      console.error('Erro de autenticação:', err);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!loginEmail.trim() || !loginPassword || loggingIn) return;
+
+    setLoggingIn(true);
+    setLoginError('');
+
+    try {
+      const response = await secureFetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: loginEmail.trim(),
+          password: loginPassword,
+          rememberMe: loginRememberMe
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Falha ao autenticar.');
+      }
+
+      setUser(data.user);
+      
+      // Load data
+      fetchProducts();
+      fetchCoupons();
+      fetchGeminiKey();
+      
+      showToast('Login realizado com sucesso!');
+    } catch (err) {
+      setLoginError(err.message);
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await secureFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+      setUser(null);
+      showToast('Sessão encerrada.');
+    } catch (err) {
+      console.error('Erro ao deslogar:', err);
+    }
+  };
+
   useEffect(() => {
-    fetchProducts();
-    fetchCoupons();
-    fetchGeminiKey();
+    verifySession();
   }, []);
 
   const showToast = (message) => {
@@ -217,7 +295,7 @@ function App() {
     setScraping(true);
     setShowForm(false);
     try {
-      const response = await fetch(`${API_BASE}/scrape?url=${encodeURIComponent(urlInput.trim())}`);
+      const response = await secureFetch(`${API_BASE}/scrape?url=${encodeURIComponent(urlInput.trim())}`);
       const data = await response.json();
       
       if (!response.ok) {
@@ -270,7 +348,7 @@ function App() {
 
     setSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE}/products`, {
+      const response = await secureFetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -311,7 +389,7 @@ function App() {
     if (!window.confirm('Tem certeza que deseja remover esta promoção?')) return;
 
     try {
-      const response = await fetch(`${API_BASE}/products/${id}`, {
+      const response = await secureFetch(`${API_BASE}/products/${id}`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -336,7 +414,7 @@ function App() {
 
     setSubmittingCoupon(true);
     try {
-      const response = await fetch(`${API_BASE}/coupons`, {
+      const response = await secureFetch(`${API_BASE}/coupons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -373,7 +451,7 @@ function App() {
     if (!window.confirm(`Tem certeza que deseja excluir o cupom ${code}? Todos os produtos vinculados perderão este cupom.`)) return;
 
     try {
-      const response = await fetch(`${API_BASE}/coupons/${code}`, {
+      const response = await secureFetch(`${API_BASE}/coupons/${code}`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -489,7 +567,7 @@ function App() {
         if (!confirmImport) return;
 
         setLoadingList(true);
-        const response = await fetch(`${API_BASE}/products/bulk`, {
+        const response = await secureFetch(`${API_BASE}/products/bulk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(lines)
@@ -516,6 +594,161 @@ function App() {
 
   // Show editor form after scrape
   const [showForm, setShowForm] = useState(false);
+
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f5f5f5', color: '#333', fontFamily: 'sans-serif' }}>
+        <RefreshCw size={36} className="animate-spin" style={{ animation: 'spin 1.5s linear infinite', color: '#1565c0', marginBottom: '16px' }} />
+        <span style={{ fontSize: '1rem', fontWeight: 600 }}>Verificando sessão segura...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+        fontFamily: 'sans-serif',
+        padding: '20px'
+      }}>
+        <div style={{
+          width: '100%',
+          maxWidth: '420px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '12px',
+          padding: '40px 30px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <h1 style={{ fontSize: '2rem', margin: '0 0 10px 0', color: '#1e3c72', fontWeight: 700 }}>
+              🎣 Fishering Admin
+            </h1>
+            <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>
+              Faça login para acessar o painel de controle seguro
+            </p>
+          </div>
+
+          {loginError && (
+            <div style={{
+              background: '#ffebee',
+              borderLeft: '4px solid #f44336',
+              color: '#c62828',
+              padding: '12px',
+              borderRadius: '4px',
+              fontSize: '0.85rem',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              fontWeight: 500
+            }}>
+              ⚠️ {loginError}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#333' }}>E-mail / Usuário</label>
+              <input
+                type="email"
+                placeholder="Ex: admin@fishering.top"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                required
+                style={{
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #ccc',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#333' }}>Senha</label>
+              <input
+                type="password"
+                placeholder="Insira sua senha..."
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                required
+                style={{
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #ccc',
+                  fontSize: '0.95rem',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#555' }}>
+                <input
+                  type="checkbox"
+                  checked={loginRememberMe}
+                  onChange={(e) => setLoginRememberMe(e.target.checked)}
+                />
+                Lembrar-me
+              </label>
+              <a 
+                href="#forgot" 
+                onClick={(e) => { e.preventDefault(); showToast('Entre em contato com o suporte de TI para redefinir sua senha.'); }}
+                style={{ color: '#1e3c72', textDecoration: 'none', fontWeight: 600 }}
+              >
+                Esqueceu a senha?
+              </a>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loggingIn}
+              style={{
+                background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+                color: '#fff',
+                padding: '14px',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 15px rgba(30, 60, 114, 0.3)',
+                transition: 'transform 0.1s, opacity 0.2s',
+                width: '100%'
+              }}
+            >
+              {loggingIn ? (
+                <>
+                  <RefreshCw size={18} className="animate-spin" style={{ animation: 'spin 1.5s linear infinite' }} />
+                  Autenticando...
+                </>
+              ) : (
+                'Entrar no Painel'
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div className="toast">
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
@@ -549,11 +782,21 @@ function App() {
             </div>
           </div>
           
-          <div className="header-actions">
+          <div className="header-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Olá, <strong>{user?.email}</strong>
+            </span>
             <a href={CLIENT_PORTAL_URL} className="btn-header-action-primary" target="_blank" rel="noopener noreferrer">
               <ExternalLink size={15} />
               Ver Portal de Clientes
             </a>
+            <button 
+              onClick={handleLogout} 
+              className="btn-danger" 
+              style={{ padding: '8px 14px', fontSize: '0.85rem', fontWeight: 600 }}
+            >
+              Sair
+            </button>
           </div>
         </div>
       </header>

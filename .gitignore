@@ -34,4 +34,5 @@ lerna-debug.log*
 *.sln
 *.sw?
 .DS_Store
-Thumbs.db
+# Build archives
+fishering_deploy.tar.gz
