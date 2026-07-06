@@ -26,23 +26,52 @@ function App() {
   const [originalPrice, setOriginalPrice] = useState('');
   const [category, setCategory] = useState('Molinete');
   const [store, setStore] = useState('Mercado Livre');
-  const [coupon, setCoupon] = useState('');
-  
-  // Show editor form after scrape
-  const [showForm, setShowForm] = useState(false);
-
-  // Tabs & Coupon state
+    // Tabs & Coupon state
   const [activeTab, setActiveTab] = useState('products'); // 'products' ou 'coupons'
   const [coupons, setCoupons] = useState([]);
   const [loadingCoupons, setLoadingCoupons] = useState(true);
   const [couponCode, setCouponCode] = useState('');
   const [couponType, setCouponType] = useState('percentage'); // 'percentage' ou 'fixed'
   const [couponValue, setCouponValue] = useState('');
-  const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [submittingCoupon, setSubmittingCoupon] = useState(false);
   const [couponMaxDiscount, setCouponMaxDiscount] = useState('');
-  const [minPriceFilter, setMinPriceFilter] = useState('');
-  const [maxPriceFilter, setMaxPriceFilter] = useState('');
+  const [couponMinProductPrice, setCouponMinProductPrice] = useState('');
+
+  // Helper to calculate coupon discount in admin
+  const getCouponDiscount = (productPrice, coupon) => {
+    if (coupon.minProductPrice !== null && productPrice < coupon.minProductPrice) {
+      return 0;
+    }
+    
+    let discount = 0;
+    if (coupon.type === 'percentage') {
+      discount = productPrice * (coupon.value / 100);
+    } else if (coupon.type === 'fixed') {
+      discount = coupon.value;
+    }
+    
+    if (coupon.maxDiscount !== null && discount > coupon.maxDiscount) {
+      discount = coupon.maxDiscount;
+    }
+    
+    return Math.min(discount, productPrice);
+  };
+
+  // Helper to find the best coupon in admin
+  const getBestCouponForPrice = (productPrice) => {
+    let bestCoupon = null;
+    let maxDiscount = 0;
+    
+    for (const coupon of coupons) {
+      const discount = getCouponDiscount(productPrice, coupon);
+      if (discount > maxDiscount) {
+        maxDiscount = discount;
+        bestCoupon = coupon;
+      }
+    }
+    
+    return bestCoupon;
+  };
 
   // Fetch all products
   const fetchProducts = async () => {
@@ -160,8 +189,7 @@ function App() {
           originalPrice: originalPrice ? parseFloat(originalPrice) : null,
           url: urlInput.trim(),
           category,
-          store: store.trim() || 'Mercado Livre',
-          coupon: coupon.trim() ? coupon.trim().toUpperCase() : null
+          store: store.trim() || 'Mercado Livre'
         })
       });
 
@@ -173,7 +201,6 @@ function App() {
         setImageUrl('');
         setPrice('');
         setOriginalPrice('');
-        setCoupon('');
         setShowForm(false);
         fetchProducts();
       } else {
@@ -226,16 +253,16 @@ function App() {
           type: couponType,
           value: parseFloat(couponValue),
           maxDiscount: couponMaxDiscount !== '' ? parseFloat(couponMaxDiscount) : null,
-          productIds: selectedProductIds
+          minProductPrice: couponMinProductPrice !== '' ? parseFloat(couponMinProductPrice) : 0
         })
       });
 
       if (response.ok) {
-        showToast('Cupom gravado e produtos vinculados com sucesso! 🎟️');
+        showToast('Cupom gravado com sucesso! 🎟️');
         setCouponCode('');
         setCouponValue('');
         setCouponMaxDiscount('');
-        setSelectedProductIds([]);
+        setCouponMinProductPrice('');
         fetchCoupons();
         fetchProducts(); // Refresh products to show updated coupon code
       } else {
@@ -396,50 +423,8 @@ function App() {
     e.target.value = ''; // Reset input
   };
 
-  // Toggle checkbox for linking products to coupon
-  const handleProductCheckboxChange = (productId) => {
-    setSelectedProductIds(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
-  };
-
-  // Filter products for the coupon checklist based on price
-  const filteredChecklistProducts = products.filter(p => {
-    const price = parseFloat(p.price);
-    const min = minPriceFilter !== '' ? parseFloat(minPriceFilter) : null;
-    const max = maxPriceFilter !== '' ? parseFloat(maxPriceFilter) : null;
-    
-    if (min !== null && isNaN(min)) return true;
-    if (max !== null && isNaN(max)) return true;
-
-    if (min !== null && price < min) return false;
-    if (max !== null && price > max) return false;
-    return true;
-  });
-
-  // Select all products currently visible in the checklist
-  const handleSelectAllFiltered = (e) => {
-    e.preventDefault();
-    const filteredIds = filteredChecklistProducts.map(p => p.id);
-    setSelectedProductIds(prev => {
-      const newSelection = [...prev];
-      filteredIds.forEach(id => {
-        if (!newSelection.includes(id)) {
-          newSelection.push(id);
-        }
-      });
-      return newSelection;
-    });
-  };
-
-  // Deselect all products currently visible in the checklist
-  const handleDeselectAllFiltered = (e) => {
-    e.preventDefault();
-    const filteredIds = filteredChecklistProducts.map(p => p.id);
-    setSelectedProductIds(prev => prev.filter(id => !filteredIds.includes(id)));
-  };
+  // Show editor form after scrape
+  const [showForm, setShowForm] = useState(false);
 
   return (
     <div className="app-container">
@@ -591,22 +576,6 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Cupom Field */}
-                    <div className="form-group">
-                      <label>Cupom de Desconto Vincular (Opcional)</label>
-                      <select 
-                        value={coupon} 
-                        onChange={(e) => setCoupon(e.target.value)}
-                      >
-                        <option value="">Sem Cupom</option>
-                        {coupons.map(c => (
-                          <option key={c.code} value={c.code}>
-                            {c.code} ({c.type === 'percentage' ? `${c.value}%` : `R$ ${c.value}`} OFF)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
                     <button 
                       type="submit" 
                       className="btn-action-primary" 
@@ -652,20 +621,11 @@ function App() {
                       </h2>
 
                       <div className="card-price-section">
-                        {/* Se houver um cupom de desconto vinculado e ele existir cadastrado */}
                         {(() => {
-                          const linkedCoupon = coupons.find(c => c.code === coupon);
-                          if (linkedCoupon) {
-                            const origVal = parseFloat(price || 0);
-                            let discount = 0;
-                            if (linkedCoupon.type === 'percentage') {
-                              discount = origVal * (linkedCoupon.value / 100);
-                            } else {
-                              discount = linkedCoupon.value;
-                            }
-                            if (linkedCoupon.maxDiscount != null && discount > linkedCoupon.maxDiscount) {
-                              discount = linkedCoupon.maxDiscount;
-                            }
+                          const origVal = parseFloat(price || 0);
+                          const bestCoupon = getBestCouponForPrice(origVal);
+                          if (bestCoupon) {
+                            const discount = getCouponDiscount(origVal, bestCoupon);
                             const promoVal = Math.max(0, origVal - discount);
                             return (
                               <>
@@ -678,7 +638,7 @@ function App() {
                                   </span>
                                 </div>
                                 <span className="card-coupon-badge">
-                                  🎟️ Cupom: {coupon}
+                                  🎟️ Cupom: {bestCoupon.code}
                                 </span>
                               </>
                             );
@@ -686,7 +646,7 @@ function App() {
                             return (
                               <div className="price-row">
                                 <span className="card-current-price">
-                                  R$ {parseFloat(price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  R$ {origVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
                             );
@@ -843,11 +803,7 @@ function App() {
                       placeholder={couponType === 'percentage' ? 'Ex: 15' : 'Ex: 20.00'}
                       value={couponValue}
                       onChange={(e) => setCouponValue(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
+                             <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
                     <label>Valor Máximo do Desconto (R$ - Opcional)</label>
                     <input
                       type="number"
@@ -857,97 +813,16 @@ function App() {
                       onChange={(e) => setCouponMaxDiscount(e.target.value)}
                     />
                   </div>
-                </div>
 
-                <div className="form-group" style={{ marginTop: '12px' }}>
-                  <label>Vincular Produtos a este Cupom</label>
-                  
-                  {/* Filter and Selection buttons row */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '10px', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Preço de:</span>
-                      <input
-                        type="number"
-                        placeholder="Mínimo"
-                        value={minPriceFilter}
-                        onChange={(e) => setMinPriceFilter(e.target.value)}
-                        style={{ padding: '6px 8px', width: '90px', fontSize: '0.85rem', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>até</span>
-                      <input
-                        type="number"
-                        placeholder="Máximo"
-                        value={maxPriceFilter}
-                        onChange={(e) => setMaxPriceFilter(e.target.value)}
-                        style={{ padding: '6px 8px', width: '90px', fontSize: '0.85rem', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
-                      {(minPriceFilter || maxPriceFilter) && (
-                        <button
-                          type="button"
-                          onClick={() => { setMinPriceFilter(''); setMaxPriceFilter(''); }}
-                          style={{ background: 'transparent', border: 'none', color: '#f73f55', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: '4px' }}
-                        >
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={handleSelectAllFiltered}
-                        style={{ 
-                          fontSize: '0.75rem', 
-                          padding: '6px 12px', 
-                          background: 'transparent', 
-                          border: '1px solid var(--accent-blue)', 
-                          color: 'var(--accent-blue)',
-                          borderRadius: '4px',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Selecionar Todos ({filteredChecklistProducts.length})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeselectAllFiltered}
-                        style={{ 
-                          fontSize: '0.75rem', 
-                          padding: '6px 12px', 
-                          background: 'transparent', 
-                          border: '1px solid var(--danger)', 
-                          color: 'var(--danger)',
-                          borderRadius: '4px',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Deselecionar Todos
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="checklist-container">
-                    {filteredChecklistProducts.length === 0 ? (
-                      <p style={{ padding: '10px', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                        Nenhum produto corresponde aos filtros aplicados.
-                      </p>
-                    ) : (
-                      filteredChecklistProducts.map(p => (
-                        <label key={p.id} className="checklist-item">
-                          <input
-                            type="checkbox"
-                            checked={selectedProductIds.includes(p.id)}
-                            onChange={() => handleProductCheckboxChange(p.id)}
-                          />
-                          <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                            <span>{p.title} ({p.store})</span>
-                            <strong style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                          </span>
-                        </label>
-                      ))
-                    )}
+                  <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
+                    <label>Valor Mínimo do Produto (R$ - Opcional)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ex: 100.00 (vazio = sem mínimo)"
+                      value={couponMinProductPrice}
+                      onChange={(e) => setCouponMinProductPrice(e.target.value)}
+                    />
                   </div>
                 </div>
 
@@ -965,7 +840,7 @@ function App() {
                   ) : (
                     <>
                       <Plus size={16} style={{ marginRight: '6px' }} />
-                      Cadastrar e Vincular Cupom
+                      Cadastrar Cupom
                     </>
                   )}
                 </button>
@@ -996,13 +871,12 @@ function App() {
                       <th>Tipo</th>
                       <th>Valor</th>
                       <th>Máx. Desconto</th>
-                      <th>Produtos Vinculados</th>
+                      <th>Valor Mín. Produto</th>
                       <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {coupons.map(c => {
-                      const linkedCount = products.filter(p => p.coupon === c.code).length;
                       return (
                         <tr key={c.code}>
                           <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -1020,7 +894,7 @@ function App() {
                             {c.maxDiscount != null ? `R$ ${c.maxDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Sem limite'}
                           </td>
                           <td style={{ color: 'var(--text-secondary)' }}>
-                            {linkedCount} {linkedCount === 1 ? 'produto' : 'produtos'}
+                            {c.minProductPrice > 0 ? `R$ ${c.minProductPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Sem mínimo'}
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             <button

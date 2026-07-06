@@ -25,6 +25,42 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Helper to calculate coupon discount for a product price
+function getCouponDiscount(productPrice, coupon) {
+  if (coupon.minProductPrice !== null && productPrice < coupon.minProductPrice) {
+    return 0;
+  }
+  
+  let discount = 0;
+  if (coupon.type === 'percentage') {
+    discount = productPrice * (coupon.value / 100);
+  } else if (coupon.type === 'fixed') {
+    discount = coupon.value;
+  }
+  
+  if (coupon.maxDiscount !== null && discount > coupon.maxDiscount) {
+    discount = coupon.maxDiscount;
+  }
+  
+  return Math.min(discount, productPrice);
+}
+
+// Helper to find the coupon that gives the highest discount
+function getBestCouponForProduct(productPrice, coupons) {
+  let bestCoupon = null;
+  let maxDiscount = 0;
+  
+  for (const coupon of coupons) {
+    const discount = getCouponDiscount(productPrice, coupon);
+    if (discount > maxDiscount) {
+      maxDiscount = discount;
+      bestCoupon = coupon;
+    }
+  }
+  
+  return bestCoupon;
+}
+
 // Helper to scrape metadata from a URL
 async function scrapeProduct(url) {
   try {
@@ -192,15 +228,33 @@ async function scrapeProduct(url) {
 }
 
 // API: Listar todos os produtos
-// API: Listar todos os produtos
 app.get('/api/products', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM products ORDER BY createdAt DESC');
-    const products = rows.map(r => ({
+    const [productRows] = await pool.query('SELECT * FROM products ORDER BY createdAt DESC');
+    const [couponRows] = await pool.query('SELECT * FROM coupons');
+    
+    const coupons = couponRows.map(r => ({
       ...r,
-      price: parseFloat(r.price),
-      originalPrice: r.originalPrice !== null ? parseFloat(r.originalPrice) : null
+      value: parseFloat(r.value),
+      maxDiscount: r.maxDiscount !== null ? parseFloat(r.maxDiscount) : null,
+      minProductPrice: r.minProductPrice !== null ? parseFloat(r.minProductPrice) : 0.00
     }));
+
+    const products = productRows.map(r => {
+      const price = parseFloat(r.price);
+      const originalPrice = r.originalPrice !== null ? parseFloat(r.originalPrice) : null;
+      
+      // Dynamically find the coupon offering the highest discount
+      const bestCoupon = getBestCouponForProduct(price, coupons);
+      
+      return {
+        ...r,
+        price,
+        originalPrice,
+        coupon: bestCoupon ? bestCoupon.code : null
+      };
+    });
+
     res.json(products);
   } catch (error) {
     console.error('Erro ao buscar produtos:', error);
@@ -330,7 +384,8 @@ app.get('/api/coupons', async (req, res) => {
     const coupons = rows.map(r => ({
       ...r,
       value: parseFloat(r.value),
-      maxDiscount: r.maxDiscount !== null ? parseFloat(r.maxDiscount) : null
+      maxDiscount: r.maxDiscount !== null ? parseFloat(r.maxDiscount) : null,
+      minProductPrice: r.minProductPrice !== null ? parseFloat(r.minProductPrice) : 0.00
     }));
     res.json(coupons);
   } catch (error) {
@@ -339,9 +394,9 @@ app.get('/api/coupons', async (req, res) => {
   }
 });
 
-// API: Adicionar ou atualizar um cupom e seus produtos vinculados
+// API: Adicionar ou atualizar um cupom
 app.post('/api/coupons', async (req, res) => {
-  const { code, type, value, maxDiscount, productIds } = req.body;
+  const { code, type, value, maxDiscount, minProductPrice } = req.body;
   
   if (!code || !type || value === undefined) {
     return res.status(400).json({ error: 'Código, tipo e valor do cupom são obrigatórios.' });
@@ -350,41 +405,25 @@ app.post('/api/coupons', async (req, res) => {
   const normalizedCode = code.trim().toUpperCase();
   const cleanValue = parseFloat(value);
   const cleanMaxDiscount = maxDiscount !== undefined && maxDiscount !== '' && maxDiscount !== null ? parseFloat(maxDiscount) : null;
+  const cleanMinProductPrice = minProductPrice !== undefined && minProductPrice !== '' && minProductPrice !== null ? parseFloat(minProductPrice) : 0.00;
 
-  const connection = await pool.getConnection();
   try {
-    await connection.beginTransaction();
-
-    // 1. Criar ou atualizar o cupom
-    await connection.query(
-      'INSERT INTO coupons (code, type, value, maxDiscount) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE type = ?, value = ?, maxDiscount = ?',
-      [normalizedCode, type, cleanValue, cleanMaxDiscount, type, cleanValue, cleanMaxDiscount]
+    // Adicionar/Atualizar cupom
+    await pool.query(
+      'INSERT INTO coupons (code, type, value, maxDiscount, minProductPrice) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE type = ?, value = ?, maxDiscount = ?, minProductPrice = ?',
+      [normalizedCode, type, cleanValue, cleanMaxDiscount, cleanMinProductPrice, type, cleanValue, cleanMaxDiscount, cleanMinProductPrice]
     );
 
-    // 2. Atualizar vínculos com produtos
-    if (Array.isArray(productIds)) {
-      // Remover vínculo antigo deste cupom
-      await connection.query('UPDATE products SET coupon = NULL WHERE coupon = ?', [normalizedCode]);
-      
-      // Adicionar novo vínculo
-      if (productIds.length > 0) {
-        await connection.query('UPDATE products SET coupon = ? WHERE id IN (?)', [normalizedCode, productIds]);
-      }
-    }
-
-    await connection.commit();
     res.status(201).json({
       code: normalizedCode,
       type,
       value: cleanValue,
-      maxDiscount: cleanMaxDiscount
+      maxDiscount: cleanMaxDiscount,
+      minProductPrice: cleanMinProductPrice
     });
   } catch (error) {
-    await connection.rollback();
     console.error('Erro ao salvar cupom:', error);
     res.status(500).json({ error: 'Erro no banco de dados.' });
-  } finally {
-    connection.release();
   }
 });
 

@@ -48,6 +48,9 @@ function App() {
     if (!product.coupon) return product.price;
     const linkedCoupon = coupons.find(c => c.code === product.coupon);
     if (linkedCoupon) {
+      if (linkedCoupon.minProductPrice !== null && product.price < linkedCoupon.minProductPrice) {
+        return product.price;
+      }
       let discount = 0;
       if (linkedCoupon.type === 'percentage') {
         discount = product.price * (linkedCoupon.value / 100);
