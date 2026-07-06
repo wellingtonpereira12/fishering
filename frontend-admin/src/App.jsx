@@ -43,7 +43,7 @@ function App() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
-  const [chatApiKey, setChatApiKey] = useState(localStorage.getItem('fishering_gemini_key') || '');
+  const [chatApiKey, setChatApiKey] = useState('');
   const [chatLogs, setChatLogs] = useState([]);
 
   const handleSendChat = async (e) => {
@@ -91,10 +91,25 @@ function App() {
     }
   };
 
-  const handleSaveApiKey = (key) => {
-    setChatApiKey(key);
-    localStorage.setItem('fishering_gemini_key', key);
-    showToast('Chave de API do Gemini salva localmente!');
+  const handleSaveApiKey = async (key) => {
+    try {
+      const response = await fetch(`${API_BASE}/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ key: 'gemini_api_key', value: key })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao salvar no banco');
+      }
+
+      setChatApiKey(key);
+      showToast(key ? 'Chave de API salva no banco de dados!' : 'Chave de API removida do banco!');
+    } catch (err) {
+      showToast('Erro ao salvar no banco: ' + err.message);
+    }
   };
 
   // Helper to calculate coupon discount in admin
@@ -166,9 +181,25 @@ function App() {
     }
   };
 
+  // Fetch Gemini API Key setting from database
+  const fetchGeminiKey = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/settings/gemini_api_key`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.value) {
+          setChatApiKey(data.value);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao buscar token do banco:', err);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
     fetchCoupons();
+    fetchGeminiKey();
   }, []);
 
   const showToast = (message) => {

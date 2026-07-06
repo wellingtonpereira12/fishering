@@ -460,6 +460,55 @@ app.get('/api/scrape', async (req, res) => {
   }
 });
 
+// API: Obter valor de configuração do banco
+app.get('/api/settings/:key', async (req, res) => {
+  const { key } = req.params;
+  try {
+    const [rows] = await pool.query('SELECT value FROM settings WHERE `key` = ?', [key]);
+    if (rows.length === 0) {
+      return res.json({ key, value: null });
+    }
+    
+    let val = rows[0].value;
+    if (key === 'gemini_api_key' && val) {
+      if (val.length > 8) {
+        val = val.substring(0, 8) + '...' + val.substring(val.length - 4);
+      } else {
+        val = 'configured';
+      }
+    }
+    
+    res.json({ key, value: val });
+  } catch (error) {
+    console.error('Erro ao ler configuração:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
+  }
+});
+
+// API: Salvar/Atualizar configuração no banco
+app.post('/api/settings', async (req, res) => {
+  const { key, value } = req.body;
+  if (!key) {
+    return res.status(400).json({ error: 'Chave de configuração é obrigatória.' });
+  }
+  
+  try {
+    const cleanValue = value === undefined || value === null ? null : value.toString().trim();
+    if (cleanValue === null || cleanValue === '') {
+      await pool.query('DELETE FROM settings WHERE `key` = ?', [key]);
+    } else {
+      await pool.query(
+        'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
+        [key, cleanValue, cleanValue]
+      );
+    }
+    res.json({ success: true, key, value: cleanValue ? 'updated' : 'removed' });
+  } catch (error) {
+    console.error('Erro ao salvar configuração:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
+  }
+});
+
 // Gemini API Tools Declaration
 const geminiTools = [
   {
@@ -533,10 +582,25 @@ const geminiTools = [
 // API: AI Chat Assistant with Gemini 2.5 Function Calling
 app.post('/api/chat', async (req, res) => {
   const { messages, apiKey: clientKey } = req.body;
-  const apiKey = clientKey || process.env.GEMINI_API_KEY;
+  
+  let apiKey = clientKey;
+  if (!apiKey) {
+    try {
+      const [rows] = await pool.query('SELECT value FROM settings WHERE `key` = ?', ['gemini_api_key']);
+      if (rows.length > 0 && rows[0].value) {
+        apiKey = rows[0].value;
+      }
+    } catch (dbErr) {
+      console.error('Erro ao ler gemini_api_key do banco:', dbErr);
+    }
+  }
 
   if (!apiKey) {
-    return res.status(400).json({ error: 'Chave de API do Gemini não configurada. Defina no arquivo .env do backend ou informe no chat.' });
+    apiKey = process.env.GEMINI_API_KEY;
+  }
+
+  if (!apiKey) {
+    return res.status(400).json({ error: 'Chave de API do Gemini não configurada. Defina no banco de dados, no .env do backend ou informe no chat.' });
   }
 
   // Format messages to match the Gemini API schema
