@@ -618,15 +618,12 @@ app.get('/api/settings/:key', authenticate, async (req, res) => {
     }
     
     let val = rows[0].value;
+    const isConfigured = !!val;
     if (key === 'gemini_api_key' && val) {
-      if (val.length > 8) {
-        val = val.substring(0, 8) + '...' + val.substring(val.length - 4);
-      } else {
-        val = 'configured';
-      }
+      val = null; // Do not send key content over network
     }
     
-    res.json({ key, value: val });
+    res.json({ key, value: val, isConfigured });
   } catch (error) {
     console.error('Erro ao ler configuração:', error);
     res.status(500).json({ error: 'Erro no banco de dados.' });
@@ -732,6 +729,11 @@ app.post('/api/chat', authenticate, async (req, res) => {
   const { messages, apiKey: clientKey } = req.body;
   
   let apiKey = clientKey;
+  // If the client key contains a mask or config placeholder, ignore it and load the actual key from DB/env.
+  if (apiKey && (apiKey.includes('...') || apiKey === 'configured')) {
+    apiKey = null;
+  }
+
   if (!apiKey) {
     try {
       const [rows] = await pool.query('SELECT value FROM settings WHERE `key` = ?', ['gemini_api_key']);

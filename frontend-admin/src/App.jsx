@@ -57,6 +57,7 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
   const [chatApiKey, setChatApiKey] = useState('');
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
   const [chatLogs, setChatLogs] = useState([]);
 
   const handleSendChat = async (e) => {
@@ -118,7 +119,8 @@ function App() {
         throw new Error(data.error || 'Erro ao salvar no banco');
       }
 
-      setChatApiKey(key);
+      setIsApiKeyConfigured(!!key);
+      setChatApiKey(''); // Clear the input field after successful saving
       showToast(key ? 'Chave de API salva no banco de dados!' : 'Chave de API removida do banco!');
     } catch (err) {
       showToast('Erro ao salvar no banco: ' + err.message);
@@ -200,9 +202,7 @@ function App() {
       const response = await secureFetch(`${API_BASE}/settings/gemini_api_key`);
       if (response.ok) {
         const data = await response.json();
-        if (data.value) {
-          setChatApiKey(data.value);
-        }
+        setIsApiKeyConfigured(!!data.isConfigured);
       }
     } catch (err) {
       console.error('Erro ao buscar token do banco:', err);
@@ -1282,12 +1282,12 @@ function App() {
               <div style={{ background: '#f5f5f5', padding: '10px 14px', borderRadius: '6px', marginBottom: '12px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Chave de API Gemini:</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({chatApiKey ? 'Configurada' : 'Usando padrão do servidor .env'})</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({isApiKeyConfigured ? 'Salva no banco' : 'Usando padrão do servidor .env'})</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '200px', justifyContent: 'flex-end' }}>
                   <input
                     type="password"
-                    placeholder="Cole sua API Key (opcional)..."
+                    placeholder={isApiKeyConfigured ? "Chave configurada. Digite para substituir..." : "Cole sua API Key (opcional)..."}
                     value={chatApiKey}
                     onChange={(e) => setChatApiKey(e.target.value)}
                     style={{ padding: '6px 10px', fontSize: '0.85rem', border: '1px solid #ccc', borderRadius: '4px', flex: 1, maxWidth: '250px' }}
@@ -1299,7 +1299,7 @@ function App() {
                   >
                     Salvar
                   </button>
-                  {chatApiKey && (
+                  {isApiKeyConfigured && (
                     <button
                       onClick={() => handleSaveApiKey('')}
                       style={{ background: 'transparent', border: 'none', color: '#f73f55', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
