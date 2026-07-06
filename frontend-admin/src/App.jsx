@@ -803,7 +803,11 @@ function App() {
                       placeholder={couponType === 'percentage' ? 'Ex: 15' : 'Ex: 20.00'}
                       value={couponValue}
                       onChange={(e) => setCouponValue(e.target.value)}
-                             <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
                     <label>Valor Máximo do Desconto (R$ - Opcional)</label>
                     <input
                       type="number"
