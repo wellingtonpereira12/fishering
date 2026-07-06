@@ -1,45 +1,29 @@
 import express from 'express';
 import cors from 'cors';
-import fs from 'fs/promises';
-import path from 'path';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
+import mysql from 'mysql2/promise';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const DB_FILE = path.resolve('db.json');
 
 app.use(cors());
 app.use(express.json());
 
-// Helper to read database
-async function readDB() {
-  try {
-    const data = await fs.readFile(DB_FILE, 'utf-8');
-    const parsed = JSON.parse(data);
-    if (Array.isArray(parsed)) {
-      return {
-        products: parsed,
-        coupons: []
-      };
-    }
-    return {
-      products: parsed.products || [],
-      coupons: parsed.coupons || []
-    };
-  } catch (error) {
-    console.error('Erro ao ler db.json, reiniciando banco:', error);
-    return { products: [], coupons: [] };
-  }
-}
-
-// Helper to write database
-async function writeDB(data) {
-  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
-}
+// MySQL connection pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: parseInt(process.env.DB_PORT || '3306'),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
 // Helper to scrape metadata from a URL
 async function scrapeProduct(url) {
@@ -208,9 +192,20 @@ async function scrapeProduct(url) {
 }
 
 // API: Listar todos os produtos
+// API: Listar todos os produtos
 app.get('/api/products', async (req, res) => {
-  const db = await readDB();
-  res.json(db.products);
+  try {
+    const [rows] = await pool.query('SELECT * FROM products ORDER BY createdAt DESC');
+    const products = rows.map(r => ({
+      ...r,
+      price: parseFloat(r.price),
+      originalPrice: r.originalPrice !== null ? parseFloat(r.originalPrice) : null
+    }));
+    res.json(products);
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
+  }
 });
 
 // API: Adicionar um produto
@@ -221,24 +216,37 @@ app.post('/api/products', async (req, res) => {
     return res.status(400).json({ error: 'Título, imagem, preço e link são obrigatórios.' });
   }
 
-  const db = await readDB();
-  const newProduct = {
-    id: Date.now().toString(),
-    title,
-    image,
-    price: parseFloat(price),
-    originalPrice: originalPrice ? parseFloat(originalPrice) : null,
-    url,
-    category: category || 'Geral',
-    store: store || 'Loja Externa',
-    coupon: coupon ? coupon.trim().toUpperCase() : null,
-    createdAt: new Date().toISOString()
-  };
+  const id = Date.now().toString();
+  const cleanPrice = parseFloat(price);
+  const cleanOriginalPrice = originalPrice ? parseFloat(originalPrice) : null;
+  const cleanCategory = category || 'Geral';
+  const cleanStore = store || 'Loja Externa';
+  const cleanCoupon = coupon ? coupon.trim().toUpperCase() : null;
+  const createdAt = new Date();
 
-  db.products.unshift(newProduct); // Adiciona no início da lista
-  await writeDB(db);
-  
-  res.status(201).json(newProduct);
+  try {
+    await pool.query(
+      'INSERT INTO products (id, title, image, price, originalPrice, url, category, store, coupon, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, title, image, cleanPrice, cleanOriginalPrice, url, cleanCategory, cleanStore, cleanCoupon, createdAt]
+    );
+
+    const newProduct = {
+      id,
+      title,
+      image,
+      price: cleanPrice,
+      originalPrice: cleanOriginalPrice,
+      url,
+      category: cleanCategory,
+      store: cleanStore,
+      coupon: cleanCoupon,
+      createdAt: createdAt.toISOString()
+    };
+    res.status(201).json(newProduct);
+  } catch (error) {
+    console.error('Erro ao adicionar produto:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
+  }
 });
 
 // API: Adicionar vários produtos em lote (Bulk Import)
@@ -248,57 +256,87 @@ app.post('/api/products/bulk', async (req, res) => {
     return res.status(400).json({ error: 'Os dados devem ser uma lista de produtos.' });
   }
 
-  const db = await readDB();
   const addedProducts = [];
   const timestamp = Date.now();
+  
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const { title, image, price, originalPrice, url, category, store, coupon } = item;
-    if (!title || !image || price === undefined || !url) {
-      continue;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const { title, image, price, originalPrice, url, category, store, coupon } = item;
+      if (!title || !image || price === undefined || !url) {
+        continue;
+      }
+
+      const id = (timestamp + i).toString();
+      const cleanPrice = parseFloat(price);
+      const cleanOriginalPrice = originalPrice ? parseFloat(originalPrice) : null;
+      const cleanCategory = category || 'Geral';
+      const cleanStore = store || 'Loja Externa';
+      const cleanCoupon = coupon && coupon !== '-' ? coupon.trim().toUpperCase() : null;
+      const createdAt = new Date(timestamp + i);
+
+      await connection.query(
+        'INSERT INTO products (id, title, image, price, originalPrice, url, category, store, coupon, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, title.trim(), image.trim(), cleanPrice, cleanOriginalPrice, url.trim(), cleanCategory, cleanStore, cleanCoupon, createdAt]
+      );
+
+      addedProducts.push({
+        id,
+        title: title.trim(),
+        image: image.trim(),
+        price: cleanPrice,
+        originalPrice: cleanOriginalPrice,
+        url: url.trim(),
+        category: cleanCategory,
+        store: cleanStore,
+        coupon: cleanCoupon,
+        createdAt: createdAt.toISOString()
+      });
     }
 
-    const newProduct = {
-      id: (timestamp + i).toString(),
-      title: title.trim(),
-      image: image.trim(),
-      price: parseFloat(price),
-      originalPrice: originalPrice ? parseFloat(originalPrice) : null,
-      url: url.trim(),
-      category: category || 'Geral',
-      store: store || 'Loja Externa',
-      coupon: coupon && coupon !== '-' ? coupon.trim().toUpperCase() : null,
-      createdAt: new Date(timestamp + i).toISOString()
-    };
-    db.products.unshift(newProduct);
-    addedProducts.push(newProduct);
+    await connection.commit();
+    res.status(201).json(addedProducts);
+  } catch (error) {
+    await connection.rollback();
+    console.error('Erro no bulk import:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
+  } finally {
+    connection.release();
   }
-
-  await writeDB(db);
-  res.status(201).json(addedProducts);
 });
 
 // API: Deletar um produto
 app.delete('/api/products/:id', async (req, res) => {
   const { id } = req.params;
-  let db = await readDB();
-  const index = db.products.findIndex(p => p.id === id);
-  
-  if (index === -1) {
-    return res.status(404).json({ error: 'Produto não encontrado.' });
+  try {
+    const [result] = await pool.query('DELETE FROM products WHERE id = ?', [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Produto não encontrado.' });
+    }
+    res.json({ message: 'Produto deletado com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao deletar produto:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
   }
-
-  db.products.splice(index, 1);
-  await writeDB(db);
-  
-  res.json({ message: 'Produto deletado com sucesso.' });
 });
 
 // API: Listar todos os cupons
 app.get('/api/coupons', async (req, res) => {
-  const db = await readDB();
-  res.json(db.coupons);
+  try {
+    const [rows] = await pool.query('SELECT * FROM coupons');
+    const coupons = rows.map(r => ({
+      ...r,
+      value: parseFloat(r.value),
+      maxDiscount: r.maxDiscount !== null ? parseFloat(r.maxDiscount) : null
+    }));
+    res.json(coupons);
+  } catch (error) {
+    console.error('Erro ao buscar cupons:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
+  }
 });
 
 // API: Adicionar ou atualizar um cupom e seus produtos vinculados
@@ -310,60 +348,61 @@ app.post('/api/coupons', async (req, res) => {
   }
 
   const normalizedCode = code.trim().toUpperCase();
-  const db = await readDB();
+  const cleanValue = parseFloat(value);
+  const cleanMaxDiscount = maxDiscount !== undefined && maxDiscount !== '' && maxDiscount !== null ? parseFloat(maxDiscount) : null;
 
-  // 1. Criar ou atualizar o cupom
-  const newCoupon = {
-    code: normalizedCode,
-    type, // 'fixed' ou 'percentage'
-    value: parseFloat(value),
-    maxDiscount: maxDiscount !== undefined && maxDiscount !== '' && maxDiscount !== null ? parseFloat(maxDiscount) : null
-  };
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-  const existingIndex = db.coupons.findIndex(c => c.code === normalizedCode);
-  if (existingIndex !== -1) {
-    db.coupons[existingIndex] = newCoupon;
-  } else {
-    db.coupons.push(newCoupon);
-  }
+    // 1. Criar ou atualizar o cupom
+    await connection.query(
+      'INSERT INTO coupons (code, type, value, maxDiscount) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE type = ?, value = ?, maxDiscount = ?',
+      [normalizedCode, type, cleanValue, cleanMaxDiscount, type, cleanValue, cleanMaxDiscount]
+    );
 
-  // 2. Atualizar vínculos com produtos
-  if (Array.isArray(productIds)) {
-    db.products.forEach(p => {
-      if (productIds.includes(p.id)) {
-        p.coupon = normalizedCode;
-      } else if (p.coupon === normalizedCode) {
-        p.coupon = null;
+    // 2. Atualizar vínculos com produtos
+    if (Array.isArray(productIds)) {
+      // Remover vínculo antigo deste cupom
+      await connection.query('UPDATE products SET coupon = NULL WHERE coupon = ?', [normalizedCode]);
+      
+      // Adicionar novo vínculo
+      if (productIds.length > 0) {
+        await connection.query('UPDATE products SET coupon = ? WHERE id IN (?)', [normalizedCode, productIds]);
       }
-    });
-  }
+    }
 
-  await writeDB(db);
-  res.status(201).json(newCoupon);
+    await connection.commit();
+    res.status(201).json({
+      code: normalizedCode,
+      type,
+      value: cleanValue,
+      maxDiscount: cleanMaxDiscount
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Erro ao salvar cupom:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
+  } finally {
+    connection.release();
+  }
 });
 
 // API: Deletar um cupom e remover vínculos de produtos
 app.delete('/api/coupons/:code', async (req, res) => {
   const { code } = req.params;
   const normalizedCode = code.trim().toUpperCase();
-  let db = await readDB();
 
-  // 1. Remover o cupom
-  const index = db.coupons.findIndex(c => c.code === normalizedCode);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Cupom não encontrado.' });
-  }
-  db.coupons.splice(index, 1);
-
-  // 2. Remover o cupom dos produtos associados
-  db.products.forEach(p => {
-    if (p.coupon === normalizedCode) {
-      p.coupon = null;
+  try {
+    const [result] = await pool.query('DELETE FROM coupons WHERE code = ?', [normalizedCode]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Cupom não encontrado.' });
     }
-  });
-
-  await writeDB(db);
-  res.json({ message: 'Cupom e seus vínculos removidos com sucesso.' });
+    res.json({ message: 'Cupom e seus vínculos removidos com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao deletar cupom:', error);
+    res.status(500).json({ error: 'Erro no banco de dados.' });
+  }
 });
 
 // API: Scraper de link de produto
